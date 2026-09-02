@@ -68,7 +68,22 @@ async function main() {
                    on conflict (tenant_id, type, unit_number) do nothing`;
         }
       }
-      console.log("seeded DEV drivers (phone 5550000001 / 5550000002) and assets for every tenant");
+      // Development admin users (dev login only; in production users come from Supabase Auth).
+      const admins = [
+        { id: "00000000-0000-4000-8000-000000000001", email: "admin@dev.local", name: "Dev Super Admin", superAdmin: true, role: "admin" },
+        { id: "00000000-0000-4000-8000-000000000002", email: "manager@dev.local", name: "Dev Tenant Admin", superAdmin: false, role: "admin" },
+        { id: "00000000-0000-4000-8000-000000000003", email: "editor@dev.local", name: "Dev Editor", superAdmin: false, role: "editor" },
+      ] as const;
+      for (const a of admins) {
+        await tx`insert into users (id, email, full_name, is_super_admin) values (${a.id}, ${a.email}, ${a.name}, ${a.superAdmin})
+                 on conflict (id) do update set email = excluded.email, is_super_admin = excluded.is_super_admin`;
+        for (const t of tenants) {
+          if (!a.superAdmin && t.slug !== "jgg") continue;
+          await tx`insert into memberships (tenant_id, user_id, role) values (${t.id}, ${a.id}, ${a.role})
+                   on conflict (tenant_id, user_id) do update set role = excluded.role`;
+        }
+      }
+      console.log("seeded DEV drivers (phone 5550000001 / 5550000002), assets, and admin users (admin@dev.local, manager@dev.local, editor@dev.local)");
     }
   });
   console.log("seed complete");
