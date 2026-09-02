@@ -24,6 +24,8 @@ export type Tx = TransactionSql<Record<string, unknown>>;
 declare global {
   var __tc_sql: Sql | undefined;
   var __tc_rls_checked: boolean | undefined;
+  /** When the login role could bypass RLS (e.g. Supabase `postgres`), every transaction drops to app_user. */
+  var __tc_set_role: string | null | undefined;
 }
 
 export function getSql(): Sql {
@@ -40,27 +42,36 @@ export function getSql(): Sql {
   return globalThis.__tc_sql;
 }
 
-/** Warn loudly (once) if the connected role can bypass RLS – that defeats tenant isolation. */
-async function assertRlsEnforced(sql: Sql) {
+/**
+ * RLS must be enforced for the role that runs application queries. If the
+ * login role is a superuser or has bypassrls (Supabase's `postgres` role from
+ * the Vercel integration), every scoped transaction switches to `app_user`
+ * with SET LOCAL ROLE. If that is impossible, production refuses to run.
+ */
+async function ensureRlsEnforced(sql: Sql) {
   if (globalThis.__tc_rls_checked) return;
-  globalThis.__tc_rls_checked = true;
-  try {
-    const [row] = await sql<{ rolbypassrls: boolean; rolsuper: boolean; rolname: string }[]>`
-      select rolname, rolbypassrls, rolsuper from pg_roles where rolname = current_user`;
-    if (row && (row.rolbypassrls || row.rolsuper)) {
-      const msg = `DATABASE_URL role "${row.rolname}" can bypass RLS. Tenant isolation is NOT enforced by the database. Use a role that is a member of app_user (see supabase/README.md).`;
+  const [row] = await sql<{ rolbypassrls: boolean; rolsuper: boolean; rolname: string }[]>`
+    select rolname, rolbypassrls, rolsuper from pg_roles where rolname = current_user`;
+  globalThis.__tc_set_role = null;
+  if (row && (row.rolbypassrls || row.rolsuper)) {
+    const [member] = await sql<{ ok: boolean }[]>`select pg_has_role(current_user, 'app_user', 'MEMBER') as ok`.catch(() => [{ ok: false }]);
+    if (member?.ok) {
+      globalThis.__tc_set_role = "app_user";
+      console.info(`[db] login role "${row.rolname}" can bypass RLS; using SET LOCAL ROLE app_user per transaction`);
+    } else {
+      const msg = `DATABASE_URL role "${row.rolname}" can bypass RLS and is not a member of app_user. Tenant isolation is NOT enforced by the database (see supabase/README.md).`;
       if (env().NODE_ENV === "production") throw new Error(msg);
       console.warn(`[db] WARNING: ${msg}`);
     }
-  } catch (e) {
-    if (env().NODE_ENV === "production") throw e;
   }
+  globalThis.__tc_rls_checked = true;
 }
 
 export async function withScope<T>(scope: Scope, fn: (tx: Tx) => Promise<T>): Promise<T> {
   const sql = getSql();
-  await assertRlsEnforced(sql);
+  await ensureRlsEnforced(sql);
   return sql.begin(async (tx) => {
+    if (globalThis.__tc_set_role) await tx.unsafe(`set local role ${globalThis.__tc_set_role}`);
     await tx`select
       set_config('app.actor', ${scope.actor}, true),
       set_config('app.tenant_id', ${scope.tenantId ?? ""}, true),

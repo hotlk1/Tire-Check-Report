@@ -100,10 +100,10 @@ let provider: StorageProvider | null = null;
 export function storage(): StorageProvider {
   if (provider) return provider;
   const e = env();
-  if (e.NEXT_PUBLIC_SUPABASE_URL && e.SUPABASE_SERVICE_ROLE_KEY) {
-    provider = new SupabaseStorageProvider(e.NEXT_PUBLIC_SUPABASE_URL, e.SUPABASE_SERVICE_ROLE_KEY, e.SUPABASE_STORAGE_BUCKET);
+  if (e.NEXT_PUBLIC_SUPABASE_URL && e.SUPABASE_SECRET_KEY) {
+    provider = new SupabaseStorageProvider(e.NEXT_PUBLIC_SUPABASE_URL, e.SUPABASE_SECRET_KEY, e.SUPABASE_STORAGE_BUCKET);
   } else {
-    if (e.NODE_ENV === "production") throw new Error("Supabase Storage is not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)");
+    if (e.NODE_ENV === "production") throw new Error("Supabase Storage is not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY)");
     console.warn(`[storage] DEV MODE: Supabase Storage not configured – using local disk at ${e.LOCAL_STORAGE_DIR}`);
     provider = new LocalDiskStorageProvider(e.LOCAL_STORAGE_DIR);
   }

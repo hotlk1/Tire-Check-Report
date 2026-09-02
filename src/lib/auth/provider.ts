@@ -25,6 +25,8 @@ export interface AuthProvider {
   readonly name: "supabase" | "dev";
   getIdentity(): Promise<Identity | null>;
   signInWithPassword(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Email a one-time sign-in link (Supabase magic link). Dev provider signs in directly. */
+  sendMagicLink(email: string, redirectTo: string): Promise<{ ok: true } | { ok: false; error: string }>;
   signOut(): Promise<void>;
   /** Creates (or finds) the auth user for an email and returns its id. */
   inviteUser(email: string): Promise<{ id: string; email: string }>;
@@ -59,14 +61,19 @@ class SupabaseAuthProvider implements AuthProvider {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return error ? { ok: false as const, error: error.message } : { ok: true as const };
   }
+  async sendMagicLink(email: string, redirectTo: string) {
+    const supabase = await this.client();
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, shouldCreateUser: false } });
+    return error ? { ok: false as const, error: error.message } : { ok: true as const };
+  }
   async signOut() {
     const supabase = await this.client();
     await supabase.auth.signOut();
   }
   async inviteUser(email: string) {
     const e = env();
-    if (!e.SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY required to invite users");
-    const admin = createClient(e.NEXT_PUBLIC_SUPABASE_URL!, e.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    if (!e.SUPABASE_SECRET_KEY) throw new Error("SUPABASE_SECRET_KEY required to invite users");
+    const admin = createClient(e.NEXT_PUBLIC_SUPABASE_URL!, e.SUPABASE_SECRET_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await admin.auth.admin.inviteUserByEmail(email);
     if (error) {
       // Already registered → look the user up.
@@ -112,6 +119,9 @@ class DevAuthProvider implements AuthProvider {
     const store = await cookies();
     store.set({ name: DEV_COOKIE, value: token, httpOnly: true, sameSite: "lax", path: "/", maxAge: 12 * 3600 });
     return { ok: true as const };
+  }
+  async sendMagicLink(email: string) {
+    return this.signInWithPassword(email);
   }
   async signOut() {
     const store = await cookies();
