@@ -12,7 +12,7 @@ import { z } from "zod";
  *  - NEXT_PUBLIC_SUPABASE_URL ← SUPABASE_URL
  *  - anon/publishable key    ← NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | SUPABASE_PUBLISHABLE_KEY | *_ANON_KEY
  *  - secret key              ← SUPABASE_SECRET_KEY | SUPABASE_SERVICE_ROLE_KEY (legacy)
- *  - APP_ENV                 ← VERCEL_ENV (preview → staging, production → production)
+ *  - APP_ENV                 ← VERCEL_ENV + VERCEL_GIT_COMMIT_REF (production only from `main`)
  *  - DRIVER_SESSION_SECRET   ← derived from the Supabase secret / JWT secret when not set explicitly
  */
 function normalizeHostEnv(raw: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -21,7 +21,12 @@ function normalizeHostEnv(raw: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   e.NEXT_PUBLIC_SUPABASE_URL ||= e.SUPABASE_URL;
   e.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= e.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || e.SUPABASE_PUBLISHABLE_KEY || e.SUPABASE_ANON_KEY;
   e.SUPABASE_SECRET_KEY ||= e.SUPABASE_SERVICE_ROLE_KEY;
-  if (!e.APP_ENV && e.VERCEL_ENV) e.APP_ENV = e.VERCEL_ENV === "production" ? "production" : "staging";
+  if (!e.APP_ENV && e.VERCEL_ENV) {
+    // Only a production deployment built from `main` is the production tier; any other
+    // branch (e.g. the staging project's branch) is staging even if Vercel labels it production.
+    const ref = e.VERCEL_GIT_COMMIT_REF ?? "";
+    e.APP_ENV = e.VERCEL_ENV === "production" && (ref === "" || ref === "main") ? "production" : "staging";
+  }
   if (!e.DRIVER_SESSION_SECRET) {
     const seed = e.SUPABASE_JWT_SECRET || e.SUPABASE_SECRET_KEY;
     if (seed) e.DRIVER_SESSION_SECRET = createHash("sha256").update(`tire-check:driver-session:${seed}`).digest("hex");
