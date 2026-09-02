@@ -9,17 +9,19 @@ PostgreSQL/Supabase.
 | Phase | Scope | State |
 | --- | --- | --- |
 | 1 | Tenancy + RLS, driver phone verification, equipment selection, tire diagram UI, status/axle logic, photos, offline autosave + outbox, submit, hosted report | **Implemented** |
-| 2 | Admin dashboard, reports/history, users/drivers, assets, thresholds + audit log | Planned |
+| 2 | Admin auth, dashboard with drill-down KPIs/trends/heatmaps, reports edit/delete with history, trucks/trailers/tires, drivers + CSV import, users/roles, threshold versioning, audit log | **Implemented** |
 | 3 | Samsara adapter, Airtable export, service tickets/webhooks, AI photo analysis provider, PDF export | Contracts in place, providers planned |
 
 What is real vs. development-only:
 
 - **Real**: schema, RLS, rate limiting, driver sessions, submission/photo APIs,
-  offline drafts and outbox, report rendering, threshold versioning storage.
+  offline drafts and outbox, report rendering, threshold versioning, the whole
+  admin app (every edit/delete/config change writes an audit row).
 - **Development-only mocks** (each logs a loud warning and is refused in
   production): Turnstile skip when `TURNSTILE_SECRET_KEY` is empty, local-disk
-  photo storage when Supabase Storage is not configured, seeded demo drivers
-  and assets from `scripts/seed.ts --dev`.
+  photo storage when Supabase Storage is not configured, the password-less
+  "dev login" for admins when Supabase Auth is not configured, and seeded demo
+  drivers/assets/admin users from `scripts/seed.ts --dev`.
 - **Not yet wired**: the AI vision provider (endpoint returns `available: false`),
   telematics/Airtable providers (tables and encryption helpers exist).
 
@@ -43,7 +45,10 @@ cp .env.example .env.local           # fill in DATABASE_URL etc. (defaults match
 npm run db:setup:local               # creates tire_check DB, app_service role, runs migrations + dev seed
 
 npm run dev                          # http://localhost:3000/t/jgg  → phone 5550000001
+                                     # http://localhost:3000/admin  → admin@dev.local (dev login)
 ```
+
+End-to-end smoke tests (dev server running): `npx playwright test`.
 
 Checks: `npm run verify` runs typecheck, lint, unit tests and a production build.
 
@@ -61,6 +66,17 @@ Checks: `npm run verify` runs typecheck, lint, unit tests and a production build
    stored encrypted in the database.
 5. Deploy. Driver links are `https://<host>/t/<tenant-slug>`.
 
+## Admin access model
+
+- Admin/editor identities come from Supabase Auth in production. On first
+  sign-in a `users` profile row is created; access is granted by an admin
+  adding the email under Drivers / Users (invitation via the Auth admin API).
+- Roles: `super_admin` (platform, all tenants), `admin` (tenant configuration,
+  users, thresholds), `editor` (data edits). Drivers never log in; they use the
+  tenant link.
+- Bootstrapping the first super admin on a fresh Supabase project: sign in once
+  so the profile row exists, then `update users set is_super_admin = true where email = '...'`.
+
 ## Layout
 
 ```
@@ -77,6 +93,10 @@ src/i18n/               en / ro / ru / es messages + translator
 src/components/tire/    TireDiagram, TireNode, AxleRow, TireSheet, PhotoCapture
 src/components/inspection/  driver flow
 src/components/report/  hosted HTML report
+src/components/admin/   plain admin primitives, charts, heatmap, nav
+src/lib/auth/           admin identity providers (Supabase Auth, dev) + session/tenant context
+src/lib/repos/admin/    admin queries and audited mutations
+src/app/admin/          admin app (route group (app) is auth-gated; /admin/login is public)
 src/app/                routes (driver: /t/[tenant], report: /report/[id], APIs)
 ```
 

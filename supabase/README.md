@@ -27,7 +27,9 @@ Then set `DATABASE_URL` to the transaction pooler URL with that user, e.g.
 
 ## Storage
 
-Bucket `inspection-photos` (private). Objects are written by the server with
+Bucket `inspection-photos` (private).
+
+Spare positions (19/20) carry `tire_entries.absent = true` when the driver declared "No spare"; such rows are excluded from tread/PSI aggregates. Objects are written by the server with
 the service-role key at `<tenant_id>/<inspection_id>/<photo_id>.jpg` and read
 through short-lived signed URLs. Phase 2 adds storage policies for admin
 sessions.
