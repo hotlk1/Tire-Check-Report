@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet"><style>
+body{margin:0;background:#EEF0F5;font-family:'Barlow',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#3D46C4;text-decoration:none}a:hover{color:#2A31A0}
+*{box-sizing:border-box}
+button{font-family:'Barlow',system-ui,sans-serif}
+input,textarea,select{font-family:'Barlow',system-ui,sans-serif}
+.scr::-webkit-scrollbar{width:0}
+</style></helmet>
+
+<section style="padding:40px 44px 36px;border-bottom:1px solid rgba(16,27,61,.09)" id="t1">
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 6px">
+<a href="#t1" style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#101B3D;color:#fff;border-radius:4px">1</a>
+<span style="font:600 13px/1.2 'Barlow',sans-serif;color:#101B3D">TireReport — driver inspection, admin console, design system</span>
+</div>
+<p style="margin:0 0 26px;max-width:760px;font:400 12.5px/1.6 'Barlow',sans-serif;color:rgba(16,27,61,.6)">Deep-ocean navy and indigo on light neutral surfaces. The tire diagram keeps the spatial logic of a printed axle report — left group, axle beam, right group, top to bottom — but rebuilds the tire as a touch card with PSI at the top, photo/damage in the middle and tread at the bottom, ringed by status colour instead of filled. <a href="#1a">1a</a> is live: tap any tire, use the keypad, review and submit.</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start">
+
+<div style="flex:none;display:flex;flex-direction:column;gap:9px" id="1a">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'Barlow',sans-serif;color:rgba(16,27,61,.55)"><a href="#1a" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(16,27,61,.08);color:#101B3D;border-radius:5px">1a</a>Driver flow — interactive</div>
+<div style="width:412px;border-radius:46px;background:#0E1729;padding:11px;box-shadow:0 26px 60px rgba(16,27,61,.26)">
+<div style="border-radius:36px;overflow:hidden;background:#F6F7FB;height:872px;display:flex;flex-direction:column;position:relative">
+
+<div style="height:46px;flex:none;background:#101B3D;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font:600 12px/1 'Barlow'">
+<span style="letter-spacing:.02em">9:41</span>
+<span style="display:flex;gap:6px;align-items:center;opacity:.85"><span style="width:16px;height:9px;border:1.5px solid #fff;border-radius:2px;display:inline-block"></span><span style="font:600 11px/1 'IBM Plex Mono'">96%</span></span>
+</div>
+
+<div style="flex:none;background:#101B3D;color:#fff;padding:6px 20px 14px;display:flex;align-items:center;gap:12px">
+<div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(150deg,#3D46C4,#6C4FD0);display:grid;place-items:center;font:700 13px/1 'Barlow-Condensed','Barlow';letter-spacing:-.02em">JG</div>
+<div style="flex:1">
+<div style="font:700 14px/1.1 'Barlow';letter-spacing:.06em">TIREREPORT</div>
+<div style="font:500 10px/1.2 'Barlow';color:rgba(255,255,255,.5);letter-spacing:.08em;text-transform:uppercase">{{ stepLabel }}</div>
+</div>
+<sc-if value="{{ showProgress }}"><div style="text-align:right">
+<div style="font:600 15px/1 'IBM Plex Mono';color:#fff">{{ progressText }}</div>
+<div style="font:500 9px/1.2 'Barlow';color:rgba(255,255,255,.45);letter-spacing:.08em">TIRES</div>
+</div></sc-if>
+</div>
+
+<sc-if value="{{ isId }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;overflow:auto;padding:44px 24px 24px" class="scr">
+<div style="font:700 27px/1.15 'Barlow';color:#101B3D;letter-spacing:-.02em">Who's inspecting?</div>
+<div style="font:400 14px/1.5 'Barlow';color:#6B7488;margin-top:8px">Enter your 10-digit mobile number.</div>
+<div style="margin-top:30px;background:#fff;border:1.5px solid #DCE0EA;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 2px rgba(16,27,61,.05)">
+<span style="font:600 17px/1 'IBM Plex Mono';color:#8A93A6">+1</span>
+<span style="width:1px;height:24px;background:#E4E7EF"></span>
+<input value="{{ phone }}" onInput="{{ onPhone }}" inputmode="numeric" placeholder="(555) 000-0000" style="flex:1;border:0;outline:none;font:600 22px/1 'IBM Plex Mono';color:#101B3D;letter-spacing:.01em;background:transparent;min-width:0" />
+</div>
+<sc-if value="{{ driverFound }}">
+<div style="margin-top:16px;background:#fff;border:1.5px solid #C9F0DE;border-radius:16px;padding:16px;display:flex;align-items:center;gap:14px">
+<div style="width:44px;height:44px;border-radius:12px;background:#EDF8F3;color:#1E9E6A;display:grid;place-items:center;font:700 15px/1 'Barlow'">MW</div>
+<div style="flex:1">
+<div style="font:700 17px/1.15 'Barlow';color:#101B3D">Marcus Webb</div>
+<div style="font:500 12px/1.3 'Barlow';color:#6B7488;margin-top:3px">Driver #4471 · Terminal: Laredo, TX</div>
+</div>
+<span style="font:700 11px/1 'Barlow';color:#1E9E6A;letter-spacing:.06em">MATCHED</span>
+</div>
+</sc-if>
+<sc-if value="{{ phoneIncomplete }}">
+<div style="margin-top:16px;font:500 12.5px/1.4 'Barlow';color:#8A93A6;padding:0 2px">{{ phoneHint }}</div>
+</sc-if>
+</div>
+<div style="flex:none;padding:16px 24px 28px;background:#F6F7FB">
+<button onClick="{{ goEquip }}" disabled="{{ idBlocked }}" style="width:100%;height:60px;border:0;border-radius:16px;background:{{ primaryBg }};color:#fff;font:700 17px/1 'Barlow';letter-spacing:.01em;cursor:pointer;box-shadow:0 8px 18px rgba(61,70,196,.22)">Continue</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ isEquip }}">
+<div style="flex:1;overflow:auto;padding:26px 20px 20px" class="scr">
+<div style="font:700 23px/1.15 'Barlow';color:#101B3D;letter-spacing:-.01em">What are you inspecting?</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px">
+<button onClick="{{ setTruck }}" style="height:78px;border-radius:14px;border:2px solid {{ truckBorder }};background:{{ truckBg }};color:{{ truckInk }};font:700 13px/1.2 'Barlow';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px"><span style="width:34px;height:14px;border-radius:3px;background:currentColor;opacity:.85"></span>Truck</button>
+<button onClick="{{ setTrailer }}" style="height:78px;border-radius:14px;border:2px solid {{ trailerBorder }};background:{{ trailerBg }};color:{{ trailerInk }};font:700 13px/1.2 'Barlow';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px"><span style="width:44px;height:11px;border-radius:2px;background:currentColor;opacity:.85"></span>Trailer</button>
+<button onClick="{{ setBoth }}" style="height:78px;border-radius:14px;border:2px solid {{ bothBorder }};background:{{ bothBg }};color:{{ bothInk }};font:700 13px/1.2 'Barlow';cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px"><span style="display:flex;align-items:center;gap:3px"><span style="width:20px;height:14px;border-radius:3px;background:currentColor;opacity:.85"></span><span style="width:26px;height:11px;border-radius:2px;background:currentColor;opacity:.85"></span></span>Both</button>
+</div>
+
+<sc-if value="{{ needTruck }}">
+<div style="margin-top:22px;background:#fff;border:1px solid #E4E7EF;border-radius:18px;padding:16px;box-shadow:0 1px 2px rgba(16,27,61,.05)">
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.1em">TRACTOR</div>
+<div style="margin-top:10px;display:flex;align-items:center;gap:10px;border:1.5px solid #DCE0EA;border-radius:13px;padding:12px 14px">
+<span style="width:8px;height:8px;border-radius:50%;background:#1E9E6A"></span>
+<div style="flex:1"><div style="font:700 17px/1.1 'Barlow';color:#101B3D">Truck 4182</div><div style="font:500 11.5px/1.2 'Barlow';color:#8A93A6;margin-top:2px">Freightliner Cascadia · 6x4</div></div>
+<span style="font:600 12px/1 'Barlow';color:#3D46C4">Change</span>
+</div>
+<div style="margin-top:12px">
+<div style="font:600 12px/1 'Barlow';color:#4B5468;letter-spacing:.02em">Odometer <span style="color:#D6403A">required</span></div>
+<div style="margin-top:7px;display:flex;align-items:center;border:1.5px solid #DCE0EA;border-radius:13px;padding:0 14px;height:54px;background:#fff">
+<input value="{{ odo }}" onInput="{{ onOdo }}" inputmode="numeric" placeholder="000000" style="flex:1;border:0;outline:none;font:600 20px/1 'IBM Plex Mono';color:#101B3D;background:transparent;min-width:0" />
+<span style="font:600 12px/1 'Barlow';color:#8A93A6;letter-spacing:.08em">MI</span>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ needTrailer }}">
+<div style="margin-top:14px;background:#fff;border:1px solid #E4E7EF;border-radius:18px;padding:16px;box-shadow:0 1px 2px rgba(16,27,61,.05)">
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.1em">TRAILER</div>
+<div style="margin-top:10px;display:flex;align-items:center;gap:10px;border:1.5px solid #DCE0EA;border-radius:13px;padding:12px 14px">
+<span style="width:8px;height:8px;border-radius:50%;background:#1E9E6A"></span>
+<div style="flex:1"><div style="font:700 17px/1.1 'Barlow';color:#101B3D">Trailer 9107</div><div style="font:500 11.5px/1.2 'Barlow';color:#8A93A6;margin-top:2px">53' dry van · 2 axles</div></div>
+<span style="font:600 12px/1 'Barlow';color:#3D46C4">Change</span>
+</div>
+<div style="margin-top:12px">
+<div style="font:600 12px/1 'Barlow';color:#4B5468">Hubometer <span style="color:#8A93A6;font-weight:500">optional</span></div>
+<div style="margin-top:7px;display:flex;align-items:center;border:1.5px solid #DCE0EA;border-radius:13px;padding:0 14px;height:54px;background:#fff">
+<input value="{{ hub }}" onInput="{{ onHub }}" inputmode="numeric" placeholder="000000" style="flex:1;border:0;outline:none;font:600 20px/1 'IBM Plex Mono';color:#101B3D;background:transparent;min-width:0" />
+<span style="font:600 12px/1 'Barlow';color:#8A93A6;letter-spacing:.08em">MI</span>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+<div style="flex:none;padding:14px 20px 26px;display:flex;gap:10px">
+<button onClick="{{ goId }}" style="width:70px;height:58px;border-radius:16px;border:1.5px solid #DCE0EA;background:#fff;color:#4B5468;font:700 15px/1 'Barlow';cursor:pointer">Back</button>
+<button onClick="{{ goInspect }}" disabled="{{ equipBlocked }}" style="flex:1;height:58px;border:0;border-radius:16px;background:{{ equipBtnBg }};color:#fff;font:700 17px/1 'Barlow';cursor:pointer;box-shadow:0 8px 18px rgba(61,70,196,.2)">Start inspection</button>
+</div>
+</sc-if>
+
+<sc-if value="{{ showDiagram }}">
+<div style="flex:1;overflow:auto;padding:14px 14px 24px" class="scr">
+
+<sc-if value="{{ isSummary }}">
+<div style="background:#fff;border:1px solid #E4E7EF;border-radius:16px;padding:14px 16px;margin-bottom:12px">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<div><div style="font:700 17px/1.1 'Barlow';color:#101B3D">Truck 4182 · Trailer 9107</div><div style="font:500 11.5px/1.3 'Barlow';color:#8A93A6;margin-top:3px">Marcus Webb · Odo {{ odoText }} mi · {{ dateText }}</div></div>
+<div style="text-align:right"><div style="font:700 15px/1 'IBM Plex Mono';color:{{ verdictInk }}">{{ verdictCode }}</div><div style="font:500 9.5px/1.2 'Barlow';color:#8A93A6;letter-spacing:.06em">RESULT</div></div>
+</div>
+</div>
+</sc-if>
+
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+<div style="margin-bottom:14px;background:#fff;border:1px solid #E4E7EF;border-radius:20px;padding:12px 10px 10px;box-shadow:0 1px 2px rgba(16,27,61,.05)">
+<div style="display:flex;align-items:center;gap:8px;padding:0 6px 10px">
+<span style="width:5px;height:5px;border-radius:50%;background:#3D46C4"></span>
+<span style="font:700 12px/1 'Barlow';color:#101B3D;letter-spacing:.12em">{{ g.name }}</span>
+<span style="flex:1;height:1px;background:#EEF0F5"></span>
+<span style="font:500 11px/1 'Barlow';color:#8A93A6">{{ g.unit }}</span>
+</div>
+
+<sc-for list="{{ g.rows }}" as="row" hint-placeholder-count="2">
+<div style="padding:4px 2px 8px">
+<div style="display:flex;align-items:center;gap:6px;padding:0 4px 5px">
+<span style="font:700 10px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em">{{ row.label }}</span>
+<sc-if value="{{ row.hasBeam }}"><span style="font:600 10px/1 'IBM Plex Mono';color:#3D46C4;background:#EEF0FE;border-radius:5px;padding:3px 6px">{{ row.avgText }}</span></sc-if>
+<sc-if value="{{ row.hasDiff }}"><span style="font:600 10px/1 'IBM Plex Mono';color:{{ row.diffInk }};background:{{ row.diffBg }};border-radius:5px;padding:3px 6px">{{ row.diffText }}</span></sc-if>
+</div>
+<div style="display:flex;align-items:flex-start;justify-content:{{ row.justify }};gap:4px">
+
+<div style="display:flex;align-items:flex-start;gap:3px">
+<sc-for list="{{ row.cellsL }}" as="c" hint-placeholder-count="2">
+<sc-if value="{{ c.isTire }}" hint-placeholder-val="{{ true }}">
+<div style="width:60px">
+<button onClick="{{ c.tap }}" style="position:relative;width:60px;padding:0;border:{{ c.ringW }} solid {{ c.ring }};border-radius:15px;background:#fff;box-shadow:0 1px 3px rgba(16,27,61,.09);display:block;overflow:hidden;cursor:pointer;text-align:center">
+<div style="position:absolute;top:0;left:0;background:{{ c.ring }};color:#fff;font:700 10px/1 'IBM Plex Mono';padding:3px 5px 4px;border-radius:11px 0 9px 0">{{ c.num }}</div>
+<sc-if value="{{ c.showPsi }}" hint-placeholder-val="{{ true }}">
+<div style="padding:17px 4px 4px;background:{{ c.psiBg }}">
+<div style="font:600 18px/1 'IBM Plex Mono';color:{{ c.psiInk }};letter-spacing:-.02em">{{ c.psiText }}</div>
+<div style="font:700 8px/1 'Barlow';letter-spacing:.1em;color:#9AA3B2;margin-top:3px">PSI</div>
+</div>
+</sc-if>
+<sc-if value="{{ c.isSpare }}">
+<div style="padding:17px 4px 5px;background:#F4F6FA">
+<div style="font:700 9px/1 'Barlow';letter-spacing:.1em;color:#8A93A6">SPARE</div>
+</div>
+</sc-if>
+<div style="display:flex;align-items:center;justify-content:center;gap:3px;padding:4px 0;border-top:1px solid #EEF0F5;border-bottom:1px solid #EEF0F5;background:{{ c.camRowBg }}">
+<span style="width:24px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:{{ c.camBg }};color:{{ c.camInk }};font:700 11px/1 'Barlow'">{{ c.camGlyph }}</span>
+<sc-if value="{{ c.hasDamage }}"><span style="font:700 9px/1 'Barlow';color:#D6403A;letter-spacing:.04em">DMG</span></sc-if>
+</div>
+<div style="padding:5px 4px 6px;background:{{ c.treadBg }}">
+<div style="font:600 18px/1 'IBM Plex Mono';color:{{ c.treadInk }};letter-spacing:-.02em">{{ c.treadText }}</div>
+<div style="font:700 8px/1 'Barlow';letter-spacing:.08em;color:#9AA3B2;margin-top:3px">/32</div>
+</div>
+</button>
+<sc-if value="{{ showPos }}" hint-placeholder-val="{{ true }}"><div style="text-align:center;font:700 9.5px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em;margin-top:4px">{{ c.pos }}</div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ c.isMatch }}">
+<div style="width:13px;align-self:center;text-align:center;padding-bottom:14px"><span style="display:inline-block;font:700 16px/1 'Barlow';color:{{ c.glyphInk }}">{{ c.glyph }}</span></div>
+</sc-if>
+</sc-for>
+</div>
+
+<sc-if value="{{ row.hasBeam }}">
+<div style="flex:1 1 0;min-width:0;align-self:center;padding-bottom:14px;display:flex;align-items:center">
+<span style="flex:1;height:6px;background:#DCE0EA;border-radius:3px"></span>
+<span style="width:18px;height:18px;border-radius:50%;border:4px solid #DCE0EA;background:#F6F7FB;margin:0 -1px;flex:none"></span>
+<span style="flex:1;height:6px;background:#DCE0EA;border-radius:3px"></span>
+</div>
+</sc-if>
+
+<div style="display:flex;align-items:flex-start;gap:3px">
+<sc-for list="{{ row.cellsR }}" as="c" hint-placeholder-count="2">
+<sc-if value="{{ c.isTire }}" hint-placeholder-val="{{ true }}">
+<div style="width:60px">
+<button onClick="{{ c.tap }}" style="position:relative;width:60px;padding:0;border:{{ c.ringW }} solid {{ c.ring }};border-radius:15px;background:#fff;box-shadow:0 1px 3px rgba(16,27,61,.09);display:block;overflow:hidden;cursor:pointer;text-align:center">
+<div style="position:absolute;top:0;left:0;background:{{ c.ring }};color:#fff;font:700 10px/1 'IBM Plex Mono';padding:3px 5px 4px;border-radius:11px 0 9px 0">{{ c.num }}</div>
+<sc-if value="{{ c.showPsi }}" hint-placeholder-val="{{ true }}">
+<div style="padding:17px 4px 4px;background:{{ c.psiBg }}">
+<div style="font:600 18px/1 'IBM Plex Mono';color:{{ c.psiInk }};letter-spacing:-.02em">{{ c.psiText }}</div>
+<div style="font:700 8px/1 'Barlow';letter-spacing:.1em;color:#9AA3B2;margin-top:3px">PSI</div>
+</div>
+</sc-if>
+<sc-if value="{{ c.isSpare }}">
+<div style="padding:17px 4px 5px;background:#F4F6FA">
+<div style="font:700 9px/1 'Barlow';letter-spacing:.1em;color:#8A93A6">SPARE</div>
+</div>
+</sc-if>
+<div style="display:flex;align-items:center;justify-content:center;gap:3px;padding:4px 0;border-top:1px solid #EEF0F5;border-bottom:1px solid #EEF0F5;background:{{ c.camRowBg }}">
+<span style="width:24px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:{{ c.camBg }};color:{{ c.camInk }};font:700 11px/1 'Barlow'">{{ c.camGlyph }}</span>
+<sc-if value="{{ c.hasDamage }}"><span style="font:700 9px/1 'Barlow';color:#D6403A;letter-spacing:.04em">DMG</span></sc-if>
+</div>
+<div style="padding:5px 4px 6px;background:{{ c.treadBg }}">
+<div style="font:600 18px/1 'IBM Plex Mono';color:{{ c.treadInk }};letter-spacing:-.02em">{{ c.treadText }}</div>
+<div style="font:700 8px/1 'Barlow';letter-spacing:.08em;color:#9AA3B2;margin-top:3px">/32</div>
+</div>
+</button>
+<sc-if value="{{ showPos }}" hint-placeholder-val="{{ true }}"><div style="text-align:center;font:700 9.5px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em;margin-top:4px">{{ c.pos }}</div></sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ c.isMatch }}">
+<div style="width:13px;align-self:center;text-align:center;padding-bottom:14px"><span style="display:inline-block;font:700 16px/1 'Barlow';color:{{ c.glyphInk }}">{{ c.glyph }}</span></div>
+</sc-if>
+</sc-for>
+</div>
+
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px;padding:2px 8px 4px;font:600 10px/1 'Barlow';color:#8A93A6;letter-spacing:.04em">
+<span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:4px;border:2.5px solid #9AA3B2"></span>NOT DONE</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:4px;border:2.5px solid #1E9E6A"></span>OK</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:4px;border:2.5px solid #D9A100"></span>WATCH</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:4px;border:2.5px solid #D6403A"></span>CRITICAL</span>
+<span style="display:flex;align-items:center;gap:5px"><span style="font:700 12px/1 'Barlow';color:#1E9E6A">=</span>MATCHED DUALS</span>
+</div>
+
+<sc-if value="{{ isSummary }}">
+<div style="margin-top:12px;background:#fff;border:1px solid #E4E7EF;border-radius:20px;overflow:hidden">
+<div style="padding:14px 16px 10px;display:flex;align-items:baseline;gap:8px">
+<span style="font:700 13px/1 'Barlow';color:#101B3D;letter-spacing:.06em">NEEDS ATTENTION</span>
+<span style="font:600 11px/1 'IBM Plex Mono';color:#D6403A;background:#FDEDEC;border-radius:5px;padding:3px 6px">{{ issueCount }}</span>
+</div>
+<sc-for list="{{ issues }}" as="it" hint-placeholder-count="3">
+<div style="display:flex;gap:12px;padding:12px 16px;border-top:1px solid #F1F3F8;align-items:flex-start">
+<span style="flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font:700 12px/1 'IBM Plex Mono';background:{{ it.badgeBg }};color:{{ it.badgeInk }}">{{ it.num }}</span>
+<div style="flex:1">
+<div style="font:700 14px/1.2 'Barlow';color:#101B3D">{{ it.title }}</div>
+<div style="font:500 12px/1.4 'Barlow';color:#6B7488;margin-top:3px">{{ it.detail }}</div>
+</div>
+<span style="flex:none;font:700 10px/1 'Barlow';letter-spacing:.06em;color:{{ it.badgeInk }};background:{{ it.badgeBg }};padding:5px 7px;border-radius:6px">{{ it.tag }}</span>
+</div>
+</sc-for>
+<sc-if value="{{ noIssues }}">
+<div style="padding:16px;border-top:1px solid #F1F3F8;font:500 13px/1.4 'Barlow';color:#1E9E6A">All readings within limits.</div>
+</sc-if>
+</div>
+
+<div style="margin-top:12px;background:#fff;border:1px solid #E4E7EF;border-radius:20px;padding:14px 16px">
+<div style="font:700 12px/1 'Barlow';color:#101B3D;letter-spacing:.08em">NOTES</div>
+<textarea value="{{ notes }}" onInput="{{ onNotes }}" placeholder="Anything the shop should know…" style="width:100%;margin-top:9px;min-height:74px;resize:vertical;border:1.5px solid #DCE0EA;border-radius:12px;padding:11px 12px;font:500 14px/1.45 'Barlow';color:#101B3D;outline:none"></textarea>
+</div>
+</sc-if>
+
+</div>
+
+<div style="flex:none;padding:12px 16px 24px;background:linear-gradient(#F6F7FB00,#F6F7FB 34%);display:flex;gap:10px">
+<sc-if value="{{ isInspect }}" hint-placeholder-val="{{ true }}">
+<button onClick="{{ goEquip }}" style="width:64px;height:58px;border-radius:16px;border:1.5px solid #DCE0EA;background:#fff;color:#4B5468;font:700 15px/1 'Barlow';cursor:pointer">Back</button>
+<button onClick="{{ goSummary }}" style="flex:1;height:58px;border:0;border-radius:16px;background:{{ reviewBg }};color:#fff;font:700 17px/1 'Barlow';cursor:pointer;box-shadow:0 8px 18px rgba(61,70,196,.2);display:flex;align-items:center;justify-content:center;gap:9px">{{ reviewLabel }}</button>
+</sc-if>
+<sc-if value="{{ isSummary }}">
+<button onClick="{{ goInspect }}" style="width:64px;height:58px;border-radius:16px;border:1.5px solid #DCE0EA;background:#fff;color:#4B5468;font:700 15px/1 'Barlow';cursor:pointer">Edit</button>
+<button onClick="{{ submit }}" style="flex:1;height:58px;border:0;border-radius:16px;background:{{ submitBg }};color:#fff;font:700 17px/1 'Barlow';cursor:pointer;box-shadow:0 8px 18px rgba(16,27,61,.18)">{{ submitLabel }}</button>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ sheetOpen }}">
+<div onClick="{{ closeSheet }}" style="position:absolute;inset:0;background:rgba(14,23,41,.45);backdrop-filter:blur(1px)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:26px 26px 0 0;box-shadow:0 -12px 40px rgba(14,23,41,.28);max-height:calc(100% - 34px);display:flex;flex-direction:column">
+<div style="flex:none;padding:14px 18px 12px;border-bottom:1px solid #F1F3F8;display:flex;align-items:center;gap:12px">
+<span style="width:40px;height:40px;border-radius:11px;display:grid;place-items:center;font:700 15px/1 'IBM Plex Mono';background:{{ sheetBadgeBg }};color:#fff">{{ sheetNum }}</span>
+<div style="flex:1"><div style="font:700 17px/1.1 'Barlow';color:#101B3D">{{ sheetTitle }}</div><div style="font:500 11.5px/1.2 'Barlow';color:#8A93A6;margin-top:3px">{{ sheetSub }}</div></div>
+<button onClick="{{ closeSheet }}" style="width:38px;height:38px;border-radius:11px;border:1.5px solid #E4E7EF;background:#fff;color:#6B7488;font:600 16px/1 'Barlow';cursor:pointer">✕</button>
+</div>
+
+<div style="flex:1;overflow:auto;padding:14px 18px 10px" class="scr">
+<div style="display:flex;gap:10px">
+<button onClick="{{ focusPsi }}" style="flex:1;text-align:left;border:2px solid {{ psiFieldBorder }};background:{{ psiFieldBg }};border-radius:15px;padding:11px 13px;cursor:pointer">
+<div style="font:700 10px/1 'Barlow';color:#8A93A6;letter-spacing:.1em">PSI</div>
+<div style="font:600 27px/1.05 'IBM Plex Mono';color:#101B3D;margin-top:5px">{{ psiDraftText }}</div>
+</button>
+<button onClick="{{ focusTread }}" style="flex:1;text-align:left;border:2px solid {{ treadFieldBorder }};background:{{ treadFieldBg }};border-radius:15px;padding:11px 13px;cursor:pointer">
+<div style="font:700 10px/1 'Barlow';color:#8A93A6;letter-spacing:.1em">TREAD /32</div>
+<div style="font:600 27px/1.05 'IBM Plex Mono';color:#101B3D;margin-top:5px">{{ treadDraftText }}</div>
+</button>
+</div>
+<div style="font:500 11.5px/1.4 'Barlow';color:{{ limitInk }};margin-top:8px;padding:0 2px">{{ limitHint }}</div>
+
+<div style="display:flex;gap:8px;margin-top:14px">
+<button onClick="{{ toggleDamage }}" style="flex:1;height:50px;border-radius:14px;border:2px solid {{ dmgBorder }};background:{{ dmgBg }};color:{{ dmgInk }};font:700 14px/1 'Barlow';cursor:pointer">Mark damaged</button>
+<button onClick="{{ addPhoto }}" style="flex:1;height:50px;border-radius:14px;border:2px solid {{ photoBorder }};background:{{ photoBg }};color:{{ photoInk }};font:700 14px/1 'Barlow';cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><span style="width:18px;height:14px;border-radius:3px;border:2px solid currentColor"></span>{{ photoLabel }}</button>
+</div>
+
+<sc-if value="{{ photoRequired }}">
+<div style="margin-top:10px;border-radius:13px;background:{{ photoReqBg }};border:1px solid {{ photoReqBorder }};padding:11px 13px;display:flex;gap:10px;align-items:flex-start">
+<span style="flex:none;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font:700 12px/1 'Barlow';background:{{ photoReqInk }};color:#fff">!</span>
+<div style="flex:1;font:600 12.5px/1.4 'Barlow';color:{{ photoReqInk }}">{{ photoReqText }}<span style="display:block;font-weight:500;color:#6B7488;margin-top:3px">Suggested: full sidewall, then close-up of the wear or damage.</span></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ damaged }}">
+<div style="margin-top:12px">
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.1em">DAMAGE TYPE</div>
+<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">
+<sc-for list="{{ damageTypes }}" as="d" hint-placeholder-count="5">
+<button onClick="{{ d.pick }}" style="height:40px;padding:0 13px;border-radius:11px;border:1.5px solid {{ d.border }};background:{{ d.bg }};color:{{ d.ink }};font:600 13px/1 'Barlow';cursor:pointer">{{ d.label }}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasPhotoThumb }}">
+<div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+<div style="width:62px;height:62px;border-radius:12px;background:repeating-linear-gradient(135deg,#E7EAF2 0 6px,#F2F4F9 6px 12px);border:1px solid #DCE0EA;display:grid;place-items:center;font:600 8.5px/1.2 'IBM Plex Mono';color:#8A93A6;text-align:center">tire<br />photo</div>
+<div style="font:500 12px/1.4 'Barlow';color:#6B7488">1 photo attached<span style="display:block;color:#9AA3B2">IMG_4471.jpg · just now</span></div>
+</div>
+</sc-if>
+
+<button onClick="{{ toggleDetails }}" style="margin-top:14px;width:100%;height:44px;border-radius:12px;border:1px dashed #CFD5E2;background:#FAFBFD;color:#4B5468;font:600 13px/1 'Barlow';cursor:pointer">{{ detailsLabel }}</button>
+<sc-if value="{{ detailsOpen }}">
+<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div style="grid-column:span 2"><div style="font:600 11px/1 'Barlow';color:#8A93A6;letter-spacing:.06em">BRAND</div><input value="{{ brand }}" onInput="{{ onBrand }}" placeholder="e.g. Michelin" style="width:100%;margin-top:6px;height:46px;border:1.5px solid #DCE0EA;border-radius:12px;padding:0 12px;font:500 14px/1 'Barlow';outline:none;color:#101B3D" /></div>
+<div><div style="font:600 11px/1 'Barlow';color:#8A93A6;letter-spacing:.06em">MODEL</div><input value="{{ model }}" onInput="{{ onModel }}" placeholder="X Line" style="width:100%;margin-top:6px;height:46px;border:1.5px solid #DCE0EA;border-radius:12px;padding:0 12px;font:500 14px/1 'Barlow';outline:none;color:#101B3D" /></div>
+<div><div style="font:600 11px/1 'Barlow';color:#8A93A6;letter-spacing:.06em">SIZE</div><input value="{{ size }}" onInput="{{ onSize }}" placeholder="295/75R22.5" style="width:100%;margin-top:6px;height:46px;border:1.5px solid #DCE0EA;border-radius:12px;padding:0 12px;font:500 14px/1 'IBM Plex Mono';outline:none;color:#101B3D" /></div>
+</div>
+</sc-if>
+</div>
+
+<div style="flex:none;border-top:1px solid #F1F3F8;background:#FAFBFD;padding:10px 12px 16px">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+<button onClick="{{ k.press }}" style="height:52px;border-radius:13px;border:1px solid #E1E5EE;background:{{ k.bg }};color:{{ k.ink }};font:600 22px/1 'IBM Plex Mono';cursor:pointer">{{ k.label }}</button>
+</sc-for>
+</div>
+<div style="display:flex;gap:8px;margin-top:9px">
+<button onClick="{{ nextField }}" style="width:104px;height:54px;border-radius:14px;border:1.5px solid #DCE0EA;background:#fff;color:#4B5468;font:700 14px/1 'Barlow';cursor:pointer">{{ nextLabel }}</button>
+<button onClick="{{ saveTire }}" style="flex:1;height:54px;border:0;border-radius:14px;background:#3D46C4;color:#fff;font:700 16px/1 'Barlow';cursor:pointer;box-shadow:0 8px 16px rgba(61,70,196,.24)">Save tire {{ sheetNum }}</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ submitted }}">
+<div style="position:absolute;inset:0;background:#101B3D;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:40px">
+<div style="width:76px;height:76px;border-radius:24px;background:linear-gradient(150deg,#3D46C4,#6C4FD0);display:grid;place-items:center;font:700 30px/1 'Barlow';color:#fff">✓</div>
+<div style="text-align:center">
+<div style="font:700 24px/1.2 'Barlow';color:#fff">Inspection submitted</div>
+<div style="font:500 14px/1.5 'Barlow';color:rgba(255,255,255,.6);margin-top:8px">Report #21384 sent to the shop. {{ issueCount }} item(s) flagged for service.</div>
+</div>
+<button onClick="{{ reset }}" style="height:52px;padding:0 26px;border-radius:15px;border:1.5px solid rgba(255,255,255,.24);background:transparent;color:#fff;font:700 15px/1 'Barlow';cursor:pointer">Start another</button>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;gap:9px" id="1b">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'Barlow',sans-serif;color:rgba(16,27,61,.55)"><a href="#1b" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(16,27,61,.08);color:#101B3D;border-radius:5px">1b</a>Admin console — click the KPIs and the sidebar</div>
+<div style="width:1280px;height:872px;border-radius:14px;overflow:hidden;border:1px solid rgba(16,27,61,.1);background:#fff;box-shadow:0 8px 30px rgba(16,27,61,.1);display:flex">
+
+<div style="width:216px;flex:none;background:#101B3D;display:flex;flex-direction:column;padding:18px 12px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 6px 20px">
+<div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(150deg,#3D46C4,#6C4FD0);display:grid;place-items:center;font:700 12px/1 'Barlow';color:#fff">JG</div>
+<div style="font:700 13px/1 'Barlow';color:#fff;letter-spacing:.06em">TIREREPORT</div>
+</div>
+<sc-for list="{{ nav }}" as="n" hint-placeholder-count="8">
+<button onClick="{{ n.go }}" style="width:100%;text-align:left;border:0;border-radius:10px;background:{{ n.bg }};color:{{ n.ink }};font:600 13.5px/1 'Barlow';padding:11px 12px;margin-bottom:2px;cursor:pointer;display:flex;align-items:center;gap:10px">
+<span style="width:6px;height:6px;border-radius:2px;background:{{ n.dot }}"></span>{{ n.label }}
+<sc-if value="{{ n.hasCount }}"><span style="margin-left:auto;font:600 11px/1 'IBM Plex Mono';color:{{ n.countInk }};background:{{ n.countBg }};border-radius:5px;padding:3px 6px">{{ n.count }}</span></sc-if>
+</button>
+</sc-for>
+<div style="margin-top:auto;padding:12px 8px;border-top:1px solid rgba(255,255,255,.1);font:500 11.5px/1.4 'Barlow';color:rgba(255,255,255,.45)">John Galt Group<span style="display:block;color:rgba(255,255,255,.3)">Fleet ops · 68 units</span></div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;background:#F6F7FB;min-width:0">
+<div style="flex:none;height:66px;background:#fff;border-bottom:1px solid #E4E7EF;display:flex;align-items:center;padding:0 26px;gap:16px">
+<div style="flex:1"><div style="font:700 18px/1.1 'Barlow';color:#101B3D">{{ adminTitle }}</div><div style="font:500 11.5px/1.2 'Barlow';color:#8A93A6;margin-top:3px">{{ adminSub }}</div></div>
+<div style="height:38px;min-width:220px;border:1.5px solid #E4E7EF;border-radius:11px;display:flex;align-items:center;padding:0 12px;font:500 13px/1 'Barlow';color:#9AA3B2">Search unit, tire, driver…</div>
+<div style="width:38px;height:38px;border-radius:11px;background:#EEF0FE;color:#3D46C4;display:grid;place-items:center;font:700 12px/1 'Barlow'">KH</div>
+</div>
+
+<div style="flex:1;overflow:auto;padding:20px 26px 28px" class="scr">
+<sc-if value="{{ adminIsDash }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+<sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+<button onClick="{{ k.go }}" style="text-align:left;background:#fff;border:1px solid {{ k.border }};border-left:4px solid {{ k.accent }};border-radius:13px;padding:14px 16px;cursor:pointer;box-shadow:0 1px 2px rgba(16,27,61,.05)">
+<div style="font:600 11px/1.2 'Barlow';color:#8A93A6;letter-spacing:.06em">{{ k.label }}</div>
+<div style="display:flex;align-items:flex-end;gap:8px;margin-top:8px">
+<span style="font:700 30px/1 'IBM Plex Mono';color:{{ k.accent }};letter-spacing:-.03em">{{ k.value }}</span>
+<span style="font:500 11.5px/1.3 'Barlow';color:#8A93A6;padding-bottom:3px">{{ k.unit }}</span>
+</div>
+<div style="font:500 11.5px/1.3 'Barlow';color:#6B7488;margin-top:8px">{{ k.note }}</div>
+</button>
+</sc-for>
+</div>
+
+<div style="display:grid;grid-template-columns:1.55fr 1fr;gap:12px;margin-top:12px">
+<div style="background:#fff;border:1px solid #E4E7EF;border-radius:13px;overflow:hidden">
+<div style="padding:14px 16px 10px;display:flex;align-items:baseline;gap:9px"><span style="font:700 12.5px/1 'Barlow';color:#101B3D;letter-spacing:.08em">CRITICAL TIRES</span><span style="font:500 11.5px/1 'Barlow';color:#8A93A6">last 48 hours</span></div>
+<div style="display:grid;grid-template-columns:74px 1fr 74px 74px 92px;padding:0 16px 7px;font:700 10px/1 'Barlow';color:#9AA3B2;letter-spacing:.08em"><span>UNIT</span><span>TIRE / ISSUE</span><span>PSI</span><span>TREAD</span><span>ACTION</span></div>
+<sc-for list="{{ critRows }}" as="r" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:74px 1fr 74px 74px 92px;align-items:center;padding:11px 16px;border-top:1px solid #F1F3F8">
+<span style="font:600 12.5px/1 'IBM Plex Mono';color:#101B3D">{{ r.unit }}</span>
+<span style="font:500 13px/1.3 'Barlow';color:#4B5468"><b style="font-weight:700;color:#101B3D">T{{ r.tire }}</b> · {{ r.issue }}</span>
+<span style="font:600 12.5px/1 'IBM Plex Mono';color:{{ r.psiInk }}">{{ r.psi }}</span>
+<span style="font:600 12.5px/1 'IBM Plex Mono';color:{{ r.treadInk }}">{{ r.tread }}</span>
+<span style="font:700 10px/1 'Barlow';letter-spacing:.05em;color:{{ r.tagInk }};background:{{ r.tagBg }};padding:5px 7px;border-radius:6px;justify-self:start">{{ r.tag }}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="background:#fff;border:1px solid #E4E7EF;border-radius:13px;padding:14px 16px">
+<div style="font:700 12.5px/1 'Barlow';color:#101B3D;letter-spacing:.08em">AVG TREAD BY POSITION</div>
+<sc-for list="{{ bars }}" as="b" hint-placeholder-count="4">
+<div style="margin-top:11px">
+<div style="display:flex;justify-content:space-between;font:600 11.5px/1 'Barlow';color:#4B5468"><span>{{ b.label }}</span><span style="font-family:'IBM Plex Mono';color:{{ b.ink }}">{{ b.value }}</span></div>
+<div style="height:7px;border-radius:4px;background:#EEF0F5;margin-top:5px;overflow:hidden"><span style="display:block;height:7px;border-radius:4px;background:{{ b.ink }};width:{{ b.width }}"></span></div>
+</div>
+</sc-for>
+<div style="font:500 11px/1.4 'Barlow';color:#9AA3B2;margin-top:12px">Fleet average across 68 units, 30 days.</div>
+</div>
+<div style="background:#fff;border:1px solid #E4E7EF;border-radius:13px;padding:14px 16px;flex:1">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:700 12.5px/1 'Barlow';color:#101B3D;letter-spacing:.08em">OPEN TICKETS</span><span style="font:600 11px/1 'IBM Plex Mono';color:#3D46C4">7</span></div>
+<sc-for list="{{ tickets }}" as="t" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #F1F3F8">
+<span style="width:7px;height:7px;border-radius:50%;background:{{ t.dot }};flex:none"></span>
+<div style="flex:1;min-width:0"><div style="font:600 13px/1.2 'Barlow';color:#101B3D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.title }}</div><div style="font:500 11px/1.3 'Barlow';color:#8A93A6;margin-top:2px">{{ t.meta }}</div></div>
+<span style="font:600 10.5px/1 'Barlow';color:#6B7488">{{ t.age }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ adminIsTable }}">
+<div style="background:#fff;border:1px solid #E4E7EF;border-radius:13px;overflow:hidden">
+<div style="padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #F1F3F8">
+<span style="font:700 12.5px/1 'Barlow';color:#101B3D;letter-spacing:.08em">{{ tableTitle }}</span>
+<span style="font:500 11.5px/1 'Barlow';color:#8A93A6">{{ tableCount }}</span>
+<span style="margin-left:auto;font:600 12px/1 'Barlow';color:#3D46C4">Export CSV</span>
+</div>
+<div style="display:grid;grid-template-columns:{{ tableGrid }};padding:9px 16px;font:700 10px/1 'Barlow';color:#9AA3B2;letter-spacing:.08em;background:#FAFBFD">
+<sc-for list="{{ tableCols }}" as="c" hint-placeholder-count="5"><span>{{ c.label }}</span></sc-for>
+</div>
+<sc-for list="{{ tableRows }}" as="r" hint-placeholder-count="8">
+<div style="display:grid;grid-template-columns:{{ tableGrid }};align-items:center;padding:12px 16px;border-top:1px solid #F1F3F8">
+<sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="5">
+<span style="font:{{ c.font }};color:{{ c.ink }};min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.text }}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="font:500 11.5px/1.5 'Barlow';color:#9AA3B2;margin-top:12px">{{ tableFoot }}</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</div>
+
+<div style="flex:none;display:flex;flex-direction:column;gap:9px" id="1c">
+<div style="display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'Barlow',sans-serif;color:rgba(16,27,61,.55)"><a href="#1c" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(16,27,61,.08);color:#101B3D;border-radius:5px">1c</a>Design system — implementable tokens</div>
+<div style="width:840px;background:#fff;border:1px solid rgba(16,27,61,.1);border-radius:14px;padding:26px 28px;box-shadow:0 4px 20px rgba(16,27,61,.07)">
+
+<div style="font:700 20px/1.1 'Barlow';color:#101B3D;letter-spacing:-.01em">TireReport design system</div>
+<div style="font:400 12.5px/1.55 'Barlow';color:#6B7488;margin-top:7px;max-width:640px">Two families, one numeric family for readings, a four-state status scale, and a single elevation. Everything below is a literal value a build can use directly.</div>
+
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em;margin-top:26px">SURFACES &amp; BRAND</div>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-top:11px">
+<div><div style="height:56px;border-radius:11px;background:#101B3D"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#101B3D</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">ink / deep ocean</div></div>
+<div><div style="height:56px;border-radius:11px;background:#3D46C4"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#3D46C4</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">indigo / primary</div></div>
+<div><div style="height:56px;border-radius:11px;background:#6C4FD0"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#6C4FD0</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">cosmic accent</div></div>
+<div><div style="height:56px;border-radius:11px;background:#F6F7FB;border:1px solid #E4E7EF"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#F6F7FB</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">app background</div></div>
+<div><div style="height:56px;border-radius:11px;background:#fff;border:1px solid #E4E7EF"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#FFFFFF</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">card surface</div></div>
+<div><div style="height:56px;border-radius:11px;background:#E4E7EF"></div><div style="font:700 10.5px/1.3 'IBM Plex Mono';color:#101B3D;margin-top:6px">#E4E7EF</div><div style="font:500 10.5px/1.3 'Barlow';color:#8A93A6">hairline</div></div>
+</div>
+
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em;margin-top:24px">STATUS SCALE — ring, ink, tint</div>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:11px">
+<div style="border:1px solid #E4E7EF;border-radius:12px;padding:12px"><div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:6px;border:3px solid #9AA3B2;background:#F4F6FA"></span><span style="font:700 13px/1 'Barlow';color:#101B3D">Not done</span></div><div style="font:600 10.5px/1.5 'IBM Plex Mono';color:#6B7488;margin-top:8px">#9AA3B2<br />#F4F6FA</div></div>
+<div style="border:1px solid #E4E7EF;border-radius:12px;padding:12px"><div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:6px;border:3px solid #1E9E6A;background:#EDF8F3"></span><span style="font:700 13px/1 'Barlow';color:#101B3D">Good</span></div><div style="font:600 10.5px/1.5 'IBM Plex Mono';color:#6B7488;margin-top:8px">#1E9E6A<br />#EDF8F3</div></div>
+<div style="border:1px solid #E4E7EF;border-radius:12px;padding:12px"><div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:6px;border:3px solid #D9A100;background:#FEF7E4"></span><span style="font:700 13px/1 'Barlow';color:#101B3D">Watch</span></div><div style="font:600 10.5px/1.5 'IBM Plex Mono';color:#6B7488;margin-top:8px">#D9A100<br />#FEF7E4</div></div>
+<div style="border:1px solid #E4E7EF;border-radius:12px;padding:12px"><div style="display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:6px;border:3px solid #D6403A;background:#FDEDEC"></span><span style="font:700 13px/1 'Barlow';color:#101B3D">Critical</span></div><div style="font:600 10.5px/1.5 'IBM Plex Mono';color:#6B7488;margin-top:8px">#D6403A<br />#FDEDEC</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;margin-top:24px">
+<div>
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em">TYPE</div>
+<div style="margin-top:11px;font:700 26px/1.1 'Barlow';color:#101B3D">Barlow 700 · 26/28</div>
+<div style="font:600 17px/1.2 'Barlow';color:#101B3D;margin-top:8px">Barlow 600 · 17/20 — titles</div>
+<div style="font:500 14px/1.45 'Barlow';color:#4B5468;margin-top:8px">Barlow 500 · 14/20 — body, never below 12px on the driver screen</div>
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em;margin-top:10px">LABEL 700 · 11 · +.12em</div>
+<div style="font:600 22px/1 'IBM Plex Mono';color:#101B3D;margin-top:12px">108 · 14.4 · 21384</div>
+<div style="font:500 11px/1.4 'Barlow';color:#8A93A6;margin-top:5px">IBM Plex Mono for every reading, ID and count — tabular, aligns in the diagram.</div>
+</div>
+<div>
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em">GEOMETRY &amp; TOUCH</div>
+<div style="font:500 12.5px/1.9 'Barlow';color:#4B5468;margin-top:9px">
+Spacing scale <span style="font-family:'IBM Plex Mono';color:#101B3D">4 · 8 · 12 · 16 · 20 · 26</span><br />
+Radius <span style="font-family:'IBM Plex Mono';color:#101B3D">tire 15 · field 13 · card 20 · sheet 26</span><br />
+Tire card <span style="font-family:'IBM Plex Mono';color:#101B3D">66 × 104</span>, ring <span style="font-family:'IBM Plex Mono';color:#101B3D">2.5px</span><br />
+Primary button <span style="font-family:'IBM Plex Mono';color:#101B3D">58–60px</span> tall, keypad key <span style="font-family:'IBM Plex Mono';color:#101B3D">52px</span><br />
+Min hit target <span style="font-family:'IBM Plex Mono';color:#101B3D">44px</span> · elevation <span style="font-family:'IBM Plex Mono';color:#101B3D">0 1px 3px rgba(16,27,61,.09)</span>
+</div>
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em;margin-top:18px">THRESHOLDS</div>
+<div style="font:500 12.5px/1.9 'Barlow';color:#4B5468;margin-top:9px">
+PSI <span style="font-family:'IBM Plex Mono';color:#1E9E6A">105–120 ok</span> · <span style="font-family:'IBM Plex Mono';color:#D9A100">98–105 watch</span> · <span style="font-family:'IBM Plex Mono';color:#D6403A">&lt;98 or &gt;120 critical</span><br />
+Steer tread <span style="font-family:'IBM Plex Mono';color:#1E9E6A">≥6/32</span> · <span style="font-family:'IBM Plex Mono';color:#D9A100">4–6</span> · <span style="font-family:'IBM Plex Mono';color:#D6403A">&lt;4 OOS</span><br />
+Drive &amp; trailer <span style="font-family:'IBM Plex Mono';color:#1E9E6A">≥5/32</span> · <span style="font-family:'IBM Plex Mono';color:#D9A100">3–5</span> · <span style="font-family:'IBM Plex Mono';color:#D6403A">&lt;3 OOS</span><br />
+Dual match <span style="font-family:'IBM Plex Mono';color:#101B3D">Δ ≤ 4/32 → =</span> , else <span style="font-family:'IBM Plex Mono';color:#101B3D">≠</span>
+</div>
+</div>
+</div>
+
+<div style="font:700 11px/1 'Barlow';color:#8A93A6;letter-spacing:.12em;margin-top:24px">TIRE CARD ANATOMY</div>
+<div style="display:flex;gap:26px;align-items:flex-start;margin-top:12px">
+<div style="display:flex;gap:10px">
+<div style="width:66px">
+<div style="position:relative;width:66px;border:2.5px solid #1E9E6A;border-radius:15px;background:#fff;overflow:hidden;text-align:center;box-shadow:0 1px 3px rgba(16,27,61,.09)">
+<div style="position:absolute;top:0;left:0;background:#1E9E6A;color:#fff;font:700 10px/1 'IBM Plex Mono';padding:3px 5px 4px;border-radius:11px 0 9px 0">3</div>
+<div style="padding:17px 4px 4px;background:#EDF8F3"><div style="font:600 18px/1 'IBM Plex Mono';color:#1E9E6A;letter-spacing:-.02em">109</div><div style="font:700 8px/1 'Barlow';letter-spacing:.1em;color:#9AA3B2;margin-top:3px">PSI</div></div>
+<div style="display:flex;justify-content:center;padding:4px 0;border-top:1px solid #EEF0F5;border-bottom:1px solid #EEF0F5;background:#FBFCFE"><span style="width:24px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:#EEF0FE;color:#3D46C4;font:700 11px/1 'Barlow'">▣</span></div>
+<div style="padding:5px 4px 6px;background:#EDF8F3"><div style="font:600 18px/1 'IBM Plex Mono';color:#1E9E6A;letter-spacing:-.02em">16.0</div><div style="font:700 8px/1 'Barlow';letter-spacing:.08em;color:#9AA3B2;margin-top:3px">/32</div></div>
+</div>
+<div style="text-align:center;font:700 9.5px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em;margin-top:4px">LO</div>
+</div>
+<div style="width:66px">
+<div style="position:relative;width:66px;border:2.5px solid #D6403A;border-radius:15px;background:#fff;overflow:hidden;text-align:center;box-shadow:0 1px 3px rgba(16,27,61,.09)">
+<div style="position:absolute;top:0;left:0;background:#D6403A;color:#fff;font:700 10px/1 'IBM Plex Mono';padding:3px 5px 4px;border-radius:11px 0 9px 0">8</div>
+<div style="padding:17px 4px 4px;background:#FDEDEC"><div style="font:600 18px/1 'IBM Plex Mono';color:#D6403A;letter-spacing:-.02em">63</div><div style="font:700 8px/1 'Barlow';letter-spacing:.1em;color:#9AA3B2;margin-top:3px">PSI</div></div>
+<div style="display:flex;align-items:center;justify-content:center;gap:3px;padding:4px 0;border-top:1px solid #EEF0F5;border-bottom:1px solid #EEF0F5;background:#FFF6F5"><span style="width:24px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:#D6403A;color:#fff;font:700 11px/1 'Barlow'">!</span><span style="font:700 9px/1 'Barlow';color:#D6403A">DMG</span></div>
+<div style="padding:5px 4px 6px;background:#EDF8F3"><div style="font:600 18px/1 'IBM Plex Mono';color:#1E9E6A;letter-spacing:-.02em">11.0</div><div style="font:700 8px/1 'Barlow';letter-spacing:.08em;color:#9AA3B2;margin-top:3px">/32</div></div>
+</div>
+<div style="text-align:center;font:700 9.5px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em;margin-top:4px">LI</div>
+</div>
+<div style="width:66px">
+<div style="position:relative;width:66px;border:2.5px solid #9AA3B2;border-radius:15px;background:#fff;overflow:hidden;text-align:center;box-shadow:0 1px 3px rgba(16,27,61,.09)">
+<div style="position:absolute;top:0;left:0;background:#9AA3B2;color:#fff;font:700 10px/1 'IBM Plex Mono';padding:3px 5px 4px;border-radius:11px 0 9px 0">17</div>
+<div style="padding:17px 4px 4px;background:#F4F6FA"><div style="font:600 18px/1 'IBM Plex Mono';color:#B3BAC7;letter-spacing:-.02em">—</div><div style="font:700 8px/1 'Barlow';letter-spacing:.1em;color:#9AA3B2;margin-top:3px">PSI</div></div>
+<div style="display:flex;justify-content:center;padding:4px 0;border-top:1px solid #EEF0F5;border-bottom:1px solid #EEF0F5;background:#FBFCFE"><span style="width:24px;height:19px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;background:#F1F3F8;color:#9AA3B2;font:700 11px/1 'Barlow'">▣</span></div>
+<div style="padding:5px 4px 6px;background:#F4F6FA"><div style="font:600 18px/1 'IBM Plex Mono';color:#B3BAC7;letter-spacing:-.02em">—</div><div style="font:700 8px/1 'Barlow';letter-spacing:.08em;color:#9AA3B2;margin-top:3px">/32</div></div>
+</div>
+<div style="text-align:center;font:700 9.5px/1 'Barlow';color:#9AA3B2;letter-spacing:.1em;margin-top:4px">RI</div>
+</div>
+</div>
+<div style="flex:1;font:500 12.5px/1.75 'Barlow';color:#4B5468">
+<b style="font-weight:700;color:#101B3D">Ring</b> carries the tire's worst status; the two reading bands carry their own tint, so PSI and tread stay independently readable without a loud fill.<br />
+<b style="font-weight:700;color:#101B3D">Number badge</b> is fixed to the top-left corner and always matches the ring — the driver can call out "tire 8" to the shop.<br />
+<b style="font-weight:700;color:#101B3D">Middle band</b> is the photo/damage control: neutral square when empty, indigo when a photo is attached, red <span style="font-family:'IBM Plex Mono'">!</span> plus DMG when a photo is required and missing.<br />
+<b style="font-weight:700;color:#101B3D">Spares</b> drop the PSI band for a SPARE cap and keep tread only.<br />
+<span style="color:#8A93A6">Em dash means no reading yet — never 0.</span>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<p style="margin:24px 0 0;font:12px/1.5 'Barlow',sans-serif;color:rgba(16,27,61,.5)">Try next: "in <a href="#1a">1a</a> put the axle avg PSI on the beam instead of the header" · "add a truck/trailer search screen to <a href="#1a">1a</a>" · "show <a href="#1b">1b</a>'s report detail page"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:2400,&quot;height&quot;:1000},&quot;demoFill&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;empty&quot;,&quot;partial&quot;,&quot;complete&quot;],&quot;default&quot;:&quot;partial&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo data&quot;},&quot;showPositionLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tire diagram&quot;},&quot;ringWeight&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:1.5,&quot;max&quot;:4,&quot;step&quot;:0.5,&quot;default&quot;:2.5,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Tire diagram&quot;},&quot;psiMin&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:98,&quot;min&quot;:60,&quot;max&quot;:110,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Thresholds&quot;},&quot;psiMax&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:120,&quot;min&quot;:110,&quot;max&quot;:140,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Thresholds&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: 'inspect', mode: 'both', phone: '(512) 448-9032', odo: '412,806', hub: '',
+    edits: {}, notes: '', submitted: false,
+    sheet: null, field: 'psi', psiDraft: '', treadDraft: '', damaged: false, dmgType: null,
+    photo: false, detailsOpen: false, brand: '', model: '', size: '',
+    admin: 'dashboard'
+  };
+
+  // ---------- static structure ----------
+  layout() {
+    return [
+      { name: 'TRACTOR', unit: 'Truck 4182 · 6x4', tag: 'truck', rows: [
+        { id: 'steer', label: 'STEER AXLE', L: [1], R: [2], dual: false, steer: true, pos: { 1: 'L', 2: 'R' } },
+        { id: 'd1', label: 'DRIVE AXLE 1', L: [3, 4], R: [5, 6], dual: true, pos: { 3: 'LO', 4: 'LI', 5: 'RI', 6: 'RO' } },
+        { id: 'd2', label: 'DRIVE AXLE 2', L: [7, 8], R: [9, 10], dual: true, pos: { 7: 'LO', 8: 'LI', 9: 'RI', 10: 'RO' } }
+      ] },
+      { name: 'TRAILER', unit: "Trailer 9107 · 53'", tag: 'trailer', rows: [
+        { id: 't1', label: 'TRAILER AXLE 1', L: [11, 12], R: [13, 14], dual: true, pos: { 11: 'LO', 12: 'LI', 13: 'RI', 14: 'RO' } },
+        { id: 't2', label: 'TRAILER AXLE 2', L: [15, 16], R: [17, 18], dual: true, pos: { 15: 'LO', 16: 'LI', 17: 'RI', 18: 'RO' } }
+      ] },
+      { name: 'SPARES', unit: 'Tread only', tag: 'truck', rows: [
+        { id: 'sp', label: 'MOUNTED SPARES', L: [19, 20], R: [], dual: false, spare: true, noBeam: true, pos: { 19: 'SP1', 20: 'SP2' } }
+      ] }
+    ];
+  }
+
+  seed() {
+    const fill = this.props.demoFill || 'partial';
+    if (fill === 'empty') return {};
+    const base = {
+      1: { psi: 112, tread: 7 }, 2: { psi: 110, tread: 10 },
+      3: { psi: 109, tread: 16 }, 4: { psi: 113, tread: 13 }, 5: { psi: 113, tread: 8 }, 6: { psi: 112, tread: 17 },
+      7: { psi: 116, tread: 11 }, 8: { psi: 63, tread: 11, damaged: true, dmgType: 'Air loss / flat', photo: true },
+      9: { psi: 110, tread: 11 }, 10: { psi: 111, tread: 10 },
+      11: { psi: 107, tread: 14.4 }, 12: { psi: 115, tread: 13.5 }, 13: { psi: 101, tread: 7.1 }, 14: { psi: 101, tread: 11.5 }
+    };
+    if (fill === 'complete') Object.assign(base, {
+      15: { psi: 108, tread: 9 }, 16: { psi: 107, tread: 9 }, 17: { psi: 108, tread: 4.5 }, 18: { psi: 110, tread: 8 },
+      19: { tread: 12 }, 20: { tread: 11.5 }
+    });
+    return base;
+  }
+
+  readings() { return Object.assign({}, this.seed(), this.state.edits); }
+
+  // ---------- status ----------
+  psiStat(v) {
+    if (v == null || v === '') return 'none';
+    const lo = this.props.psiMin || 98, hi = this.props.psiMax || 120;
+    if (v < lo || v > hi) return 'crit';
+    if (v < lo + 7) return 'warn';
+    return 'ok';
+  }
+  treadStat(v, steer) {
+    if (v == null || v === '') return 'none';
+    const crit = steer ? 4 : 3, warn = steer ? 6 : 5;
+    if (v < crit) return 'crit';
+    if (v < warn) return 'warn';
+    return 'ok';
+  }
+  ink(s) { return { none: '#9AA3B2', ok: '#1E9E6A', warn: '#D9A100', crit: '#D6403A' }[s]; }
+  tint(s) { return { none: '#F4F6FA', ok: '#EDF8F3', warn: '#FEF7E4', crit: '#FDEDEC' }[s]; }
+  worst(a, b) {
+    const rank = { none: 0, ok: 1, warn: 2, crit: 3 };
+    const s = rank[a] >= rank[b] ? a : b;
+    if (a === 'none' && b === 'none') return 'none';
+    return s;
+  }
+  num(v, d) { return v == null || v === '' ? '—' : (d ? Number(v).toFixed(1) : String(v)); }
+
+  activeGroups() {
+    const m = this.state.mode;
+    return this.layout().filter(g => m === 'both' || g.tag === m);
+  }
+  activeTires() {
+    const out = [];
+    this.activeGroups().forEach(g => g.rows.forEach(r => { r.L.concat(r.R).forEach(n => out.push({ n, row: r })); }));
+    return out;
+  }
+  isDone(n, row) {
+    const d = this.readings()[n];
+    if (!d) return false;
+    return row.spare ? d.tread != null : (d.psi != null && d.tread != null);
+  }
+
+  tireCell(n, row) {
+    const d = this.readings()[n] || {};
+    const ps = row.spare ? 'none' : this.psiStat(d.psi);
+    const ts = this.treadStat(d.tread, row.steer);
+    let ring = row.spare ? ts : this.worst(ps, ts);
+    const dmg = !!d.damaged;
+    if (dmg) ring = 'crit';
+    const needPhoto = (dmg || ps === 'crit' || ts === 'crit') && !d.photo;
+    return {
+      isTire: true, isMatch: false, num: n, pos: row.pos[n],
+      showPsi: !row.spare, isSpare: !!row.spare,
+      psiText: this.num(d.psi, false), psiInk: d.psi == null ? '#B3BAC7' : this.ink(ps), psiBg: this.tint(ps),
+      treadText: this.num(d.tread, true), treadInk: d.tread == null ? '#B3BAC7' : this.ink(ts), treadBg: this.tint(ts),
+      ring: this.ink(ring), ringW: (this.props.ringWeight || 2.5) + 'px',
+      hasDamage: dmg,
+      camGlyph: needPhoto ? '!' : '▣',
+      camBg: needPhoto ? '#D6403A' : (d.photo ? '#EEF0FE' : '#F1F3F8'),
+      camInk: needPhoto ? '#fff' : (d.photo ? '#3D46C4' : '#9AA3B2'),
+      camRowBg: needPhoto ? '#FFF6F5' : '#FBFCFE',
+      tap: () => this.openSheet(n, row)
+    };
+  }
+
+  matchCell(a, b, row) {
+    const r = this.readings();
+    const ta = (r[a] || {}).tread, tb = (r[b] || {}).tread;
+    if (ta == null || tb == null) return { isTire: false, isMatch: true, glyph: '?', glyphInk: '#C6CCD8' };
+    const ok = Math.abs(ta - tb) <= 4;
+    return { isTire: false, isMatch: true, glyph: ok ? '=' : '≠', glyphInk: ok ? '#1E9E6A' : '#D6403A' };
+  }
+
+  buildRow(row) {
+    const r = this.readings();
+    const side = arr => {
+      const cells = [];
+      arr.forEach((n, i) => {
+        if (i === 1 && row.dual) cells.push(this.matchCell(arr[0], arr[1], row));
+        cells.push(this.tireCell(n, row));
+      });
+      return cells;
+    };
+    const avgOf = arr => {
+      const v = arr.map(n => (r[n] || {}).psi).filter(x => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
+    const la = avgOf(row.L), ra = avgOf(row.R);
+    const all = avgOf(row.L.concat(row.R));
+    const diff = la != null && ra != null ? Math.abs(la - ra) : null;
+    return {
+      label: row.label, justify: row.noBeam ? 'center' : 'space-between',
+      hasBeam: !row.noBeam, hasDiff: diff != null,
+      avgText: all == null ? 'AVG —' : 'AVG ' + all.toFixed(0) + ' PSI',
+      diffText: diff == null ? '' : 'Δ L/R ' + diff.toFixed(0),
+      diffInk: diff != null && diff > 8 ? '#D6403A' : '#6B7488',
+      diffBg: diff != null && diff > 8 ? '#FDEDEC' : '#F1F3F8',
+      cellsL: side(row.L), cellsR: side(row.R)
+    };
+  }
+
+  // ---------- sheet ----------
+  openSheet(n, row) {
+    if (this.state.screen !== 'inspect') return;
+    const d = this.readings()[n] || {};
+    this.setState({
+      sheet: { n, row }, field: row.spare ? 'tread' : 'psi',
+      psiDraft: d.psi == null ? '' : String(d.psi),
+      treadDraft: d.tread == null ? '' : String(d.tread),
+      damaged: !!d.damaged, dmgType: d.dmgType || null, photo: !!d.photo,
+      detailsOpen: false, brand: d.brand || '', model: d.model || '', size: d.size || ''
+    });
+  }
+  press(k) {
+    const f = this.state.field === 'psi' ? 'psiDraft' : 'treadDraft';
+    let v = this.state[f];
+    if (k === '⌫') v = v.slice(0, -1);
+    else if (k === '.') { if (!v.includes('.') && v.length) v += '.'; }
+    else if (v.replace('.', '').length < 5) v += k;
+    this.setState({ [f]: v });
+  }
+  saveTire() {
+    const s = this.state, n = s.sheet.n;
+    const psi = s.psiDraft === '' ? null : parseFloat(s.psiDraft);
+    const tread = s.treadDraft === '' ? null : parseFloat(s.treadDraft);
+    const edits = Object.assign({}, s.edits);
+    edits[n] = { psi: s.sheet.row.spare ? null : psi, tread, damaged: s.damaged, dmgType: s.dmgType, photo: s.photo, brand: s.brand, model: s.model, size: s.size };
+    this.setState({ edits, sheet: null });
+  }
+
+  issueList() {
+    const r = this.readings(), out = [];
+    this.activeTires().forEach(({ n, row }) => {
+      const d = r[n] || {};
+      const ps = row.spare ? 'none' : this.psiStat(d.psi);
+      const ts = this.treadStat(d.tread, row.steer);
+      const parts = [];
+      if (d.damaged) parts.push({ tag: 'OOS', s: 'crit', t: d.dmgType || 'Damage reported' });
+      if (ps === 'crit') parts.push({ tag: 'PSI', s: 'crit', t: d.psi < (this.props.psiMin || 98) ? 'Underinflated at ' + d.psi + ' PSI' : 'Overinflated at ' + d.psi + ' PSI' });
+      else if (ps === 'warn') parts.push({ tag: 'PSI', s: 'warn', t: 'Approaching limit at ' + d.psi + ' PSI' });
+      if (ts === 'crit') parts.push({ tag: 'TREAD', s: 'crit', t: 'Tread ' + Number(d.tread).toFixed(1) + '/32 — below legal minimum' });
+      else if (ts === 'warn') parts.push({ tag: 'TREAD', s: 'warn', t: 'Tread ' + Number(d.tread).toFixed(1) + '/32 — replace soon' });
+      if (!this.isDone(n, row)) parts.push({ tag: 'MISSING', s: 'none', t: 'No reading entered' });
+      parts.forEach(p => out.push({
+        num: n, tag: p.tag, title: 'Tire ' + n + ' · ' + row.label.replace(' AXLE', '') + ' ' + (row.pos[n] || ''),
+        detail: p.t + (p.s === 'crit' && !d.photo && p.tag !== 'MISSING' ? ' · photo required' : ''),
+        badgeBg: this.tint(p.s === 'none' ? 'none' : p.s), badgeInk: this.ink(p.s === 'none' ? 'none' : p.s)
+      }));
+    });
+    return out;
+  }
+
+  // ---------- admin ----------
+  navDefs() {
+    return [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'reports', label: 'Reports', count: 214 },
+      { id: 'trucks', label: 'Trucks', count: 41 },
+      { id: 'trailers', label: 'Trailers', count: 27 },
+      { id: 'drivers', label: 'Drivers & users', count: 63 },
+      { id: 'history', label: 'Tire history' },
+      { id: 'tickets', label: 'Service tickets', count: 7 },
+      { id: 'settings', label: 'Integrations' }
+    ];
+  }
+  tableDefs() {
+    const mono = "600 12.5px/1 'IBM Plex Mono'", body = "500 13px/1.3 'Barlow'", strong = "700 13px/1.3 'Barlow'";
+    const cell = (text, font, ink) => ({ text, font: font || body, ink: ink || '#4B5468' });
+    return {
+      reports: { title: 'INSPECTION REPORTS', count: '214 in last 30 days', grid: '84px 96px 1fr 120px 92px 92px', foot: 'Each row opens the one-page report built from the driver diagram.',
+        cols: ['REPORT', 'DATE', 'UNIT / DRIVER', 'RESULT', 'FLAGGED', 'ODO'],
+        rows: [
+          ['21384', '09/01', 'Truck 4182 · Trailer 9107 — M. Webb', 'Action required', '3', '412,806'],
+          ['21383', '09/01', 'Truck 4108 — R. Delgado', 'No problems', '0', '388,140'],
+          ['21379', '08/31', 'Trailer 9142 — J. Okafor', 'Watch', '2', '—'],
+          ['21376', '08/31', 'Truck 4177 · Trailer 9088 — S. Boyd', 'No problems', '0', '204,551'],
+          ['21371', '08/30', 'Truck 4033 — L. Trinh', 'Action required', '1', '511,902'],
+          ['21366', '08/30', 'Truck 4190 · Trailer 9107 — M. Webb', 'Watch', '2', '410,220'],
+          ['21360', '08/29', 'Trailer 9051 — D. Feld', 'No problems', '0', '—']
+        ] },
+      trucks: { title: 'TRACTORS', count: '41 active', grid: '96px 1fr 100px 110px 110px 92px', foot: 'Layout drives the tire diagram the driver sees on that unit.',
+        cols: ['UNIT', 'MAKE / MODEL', 'LAYOUT', 'ODOMETER', 'LAST INSPECT', 'STATUS'],
+        rows: [
+          ['4182', 'Freightliner Cascadia', '6x4 · 10 tire', '412,806', '09/01', 'Action'],
+          ['4108', 'Peterbilt 579', '6x4 · 10 tire', '388,140', '09/01', 'OK'],
+          ['4177', 'Kenworth T680', '6x4 · 10 tire', '204,551', '08/31', 'OK'],
+          ['4033', 'Volvo VNL 760', '6x4 · 10 tire', '511,902', '08/30', 'Action'],
+          ['4190', 'Freightliner Cascadia', '6x4 · 10 tire', '410,220', '08/30', 'Watch'],
+          ['4021', 'International LT', '6x4 · 10 tire', '607,318', '08/24', 'Overdue']
+        ] },
+      trailers: { title: 'TRAILERS', count: '27 active', grid: '96px 1fr 100px 110px 110px 92px', foot: 'Hubometer is optional; missing values simply omit mileage trending.',
+        cols: ['UNIT', 'TYPE', 'AXLES', 'HUBOMETER', 'LAST INSPECT', 'STATUS'],
+        rows: [
+          ['9107', "53' dry van", '2', '188,402', '09/01', 'Watch'],
+          ['9142', "53' reefer", '2', '96,771', '08/31', 'Action'],
+          ['9088', "48' flatbed", '2', '—', '08/31', 'OK'],
+          ['9051', "53' dry van", '2', '241,006', '08/29', 'OK'],
+          ['9033', "53' dry van", '2', '312,884', '08/18', 'Overdue']
+        ] },
+      drivers: { title: 'DRIVERS & USERS', count: '63 people', grid: '1fr 130px 110px 110px 100px 92px', foot: 'Drivers sign in with phone number only. Admins use email + SSO.',
+        cols: ['NAME', 'PHONE', 'DRIVER #', 'TERMINAL', 'ROLE', 'LAST SEEN'],
+        rows: [
+          ['Marcus Webb', '(512) 448-9032', '4471', 'Laredo, TX', 'Driver', 'Today'],
+          ['Rosa Delgado', '(210) 771-4408', '4402', 'Laredo, TX', 'Driver', 'Today'],
+          ['Jide Okafor', '(469) 220-1183', '4519', 'Dallas, TX', 'Driver', 'Yesterday'],
+          ['Karen Hall', '(214) 990-3321', '—', 'Dallas, TX', 'Admin', 'Today'],
+          ['Sam Boyd', '(915) 664-2870', '4388', 'El Paso, TX', 'Driver', '2 days']
+        ] },
+      history: { title: 'TIRE HISTORY', count: 'Tire 8 · Truck 4182 LI', grid: '96px 90px 80px 90px 1fr 100px', foot: 'Per-position history is what later powers cost-per-mile and tire life.',
+        cols: ['DATE', 'REPORT', 'PSI', 'TREAD', 'EVENT', 'MILES'],
+        rows: [
+          ['09/01', '21384', '63', '11.0', 'Air loss — flagged OOS, photo attached', '412,806'],
+          ['08/30', '21366', '104', '11.2', 'Watch — low pressure', '410,220'],
+          ['08/22', '21341', '109', '11.8', 'Normal', '402,915'],
+          ['08/14', '21309', '110', '12.4', 'Normal', '394,660'],
+          ['07/28', '21255', '111', '13.6', 'Installed — Michelin X Line 295/75R22.5', '376,101']
+        ] },
+      tickets: { title: 'SERVICE TICKETS', count: '7 open · 2 overdue', grid: '84px 96px 1fr 120px 110px 92px', foot: 'Tickets open automatically from any critical or damaged tire.',
+        cols: ['TICKET', 'UNIT', 'ISSUE', 'VENDOR', 'OPENED', 'STATUS'],
+        rows: [
+          ['SV-1188', '4182', 'Tire 8 air loss — replace', 'Laredo Tire Co.', '09/01', 'Dispatched'],
+          ['SV-1187', '9142', 'Tires 13/14 tread mismatch', 'Fleet Serv DFW', '08/31', 'Open'],
+          ['SV-1184', '4033', 'Steer tread 3.8/32', 'On-site', '08/30', 'Overdue'],
+          ['SV-1180', '9033', 'Inspection overdue 15 days', '—', '08/28', 'Open'],
+          ['SV-1176', '4021', 'Regroove drive axle 2', 'Laredo Tire Co.', '08/24', 'Overdue']
+        ] },
+      settings: { title: 'INTEGRATIONS', count: '3 connected', grid: '1fr 140px 130px 120px 110px 92px', foot: 'Odometer and hubometer can be pulled from telematics so drivers type less.',
+        cols: ['SYSTEM', 'TYPE', 'SCOPE', 'SYNC', 'LAST RUN', 'STATE'],
+        rows: [
+          ['Samsara', 'Telematics', 'Odometer, units', 'Every 15 min', '09/01 09:32', 'On'],
+          ['McLeod', 'TMS', 'Units, drivers', 'Hourly', '09/01 09:00', 'On'],
+          ['Twilio', 'SMS', 'Driver lookup', 'Realtime', '09/01 09:40', 'On'],
+          ['Snowflake', 'Warehouse', 'Reports export', 'Nightly', '—', 'Off']
+        ] }
+    };
+  }
+
+  renderVals() {
+    const s = this.state, p = this.props;
+    const scr = s.screen;
+    const tires = this.activeTires();
+    const done = tires.filter(t => this.isDone(t.n, t.row)).length;
+    const groups = this.activeGroups().map(g => ({ name: g.name, unit: g.unit, rows: g.rows.map(r => this.buildRow(r)) }));
+    const issues = this.issueList();
+    const crit = issues.filter(i => i.tag !== 'MISSING' && i.badgeInk === '#D6403A').length;
+    const digits = s.phone.replace(/\D/g, '');
+    const found = digits.length === 10;
+
+    // sheet
+    const sh = s.sheet;
+    let sheetVals = {};
+    if (sh) {
+      const row = sh.row;
+      const psiV = s.psiDraft === '' ? null : parseFloat(s.psiDraft);
+      const treadV = s.treadDraft === '' ? null : parseFloat(s.treadDraft);
+      const ps = row.spare ? 'none' : this.psiStat(psiV);
+      const ts = this.treadStat(treadV, row.steer);
+      const needPhoto = (s.damaged || ps === 'crit' || ts === 'crit') && !s.photo;
+      const hints = [];
+      if (ps === 'crit') hints.push(psiV < (p.psiMin || 98) ? 'PSI below ' + (p.psiMin || 98) + ' — out of service' : 'PSI above ' + (p.psiMax || 120) + ' — out of service');
+      else if (ps === 'warn') hints.push('PSI approaching limit');
+      if (ts === 'crit') hints.push('Tread below legal minimum');
+      else if (ts === 'warn') hints.push('Tread getting low');
+      sheetVals = {
+        sheetOpen: true, sheetNum: sh.n,
+        sheetTitle: 'Tire ' + sh.n + (row.spare ? ' · Spare' : ' · ' + (row.pos[sh.n] || '')),
+        sheetSub: row.spare ? 'Tread depth only' : row.label.charAt(0) + row.label.slice(1).toLowerCase() + ' · target ' + (p.psiMin || 98) + '–' + (p.psiMax || 120) + ' PSI',
+        sheetBadgeBg: this.ink(this.worst(ps, ts) === 'none' ? 'none' : this.worst(ps, ts)),
+        psiDraftText: s.psiDraft === '' ? '—' : s.psiDraft,
+        treadDraftText: s.treadDraft === '' ? '—' : s.treadDraft,
+        psiFieldBorder: s.field === 'psi' ? '#3D46C4' : '#E4E7EF',
+        psiFieldBg: s.field === 'psi' ? '#F7F8FE' : '#fff',
+        treadFieldBorder: s.field === 'tread' ? '#3D46C4' : '#E4E7EF',
+        treadFieldBg: s.field === 'tread' ? '#F7F8FE' : '#fff',
+        limitHint: hints.length ? hints.join(' · ') : 'Within limits. Duals match when tread is inside 4/32.',
+        limitInk: hints.length ? '#D6403A' : '#8A93A6',
+        damaged: s.damaged, hasPhotoThumb: s.photo,
+        dmgBorder: s.damaged ? '#D6403A' : '#DCE0EA', dmgBg: s.damaged ? '#FDEDEC' : '#fff', dmgInk: s.damaged ? '#D6403A' : '#4B5468',
+        photoBorder: s.photo ? '#3D46C4' : (needPhoto ? '#D6403A' : '#DCE0EA'),
+        photoBg: s.photo ? '#EEF0FE' : '#fff',
+        photoInk: s.photo ? '#3D46C4' : (needPhoto ? '#D6403A' : '#4B5468'),
+        photoLabel: s.photo ? 'Photo added' : 'Add photo',
+        photoRequired: needPhoto, photoReqBg: '#FDEDEC', photoReqBorder: '#F6C9C6', photoReqInk: '#D6403A',
+        photoReqText: s.damaged ? 'A photo is required for damaged tires.' : 'A photo is required for out-of-service readings.',
+        damageTypes: ['Air loss / flat', 'Sidewall cut', 'Irregular wear', 'Exposed cord', 'Chunking', 'Bulge'].map(l => ({
+          label: l, pick: () => this.setState({ dmgType: l }),
+          border: s.dmgType === l ? '#D6403A' : '#DCE0EA', bg: s.dmgType === l ? '#FDEDEC' : '#fff', ink: s.dmgType === l ? '#D6403A' : '#4B5468'
+        })),
+        keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map(k => ({
+          label: k, press: () => this.press(k),
+          bg: k === '⌫' ? '#F1F3F8' : '#fff', ink: k === '⌫' ? '#6B7488' : '#101B3D'
+        })),
+        nextLabel: s.field === 'psi' ? 'Tread →' : 'PSI →',
+        nextField: () => this.setState({ field: s.field === 'psi' ? 'tread' : 'psi' }),
+        focusPsi: () => this.setState({ field: 'psi' }),
+        focusTread: () => this.setState({ field: 'tread' }),
+        toggleDamage: () => this.setState({ damaged: !s.damaged }),
+        addPhoto: () => this.setState({ photo: true }),
+        toggleDetails: () => this.setState({ detailsOpen: !s.detailsOpen }),
+        detailsLabel: s.detailsOpen ? 'Hide brand / model / size' : 'Add brand, model, size (optional)',
+        detailsOpen: s.detailsOpen, brand: s.brand, model: s.model, size: s.size,
+        onBrand: e => this.setState({ brand: e.target.value }),
+        onModel: e => this.setState({ model: e.target.value }),
+        onSize: e => this.setState({ size: e.target.value }),
+        saveTire: () => this.saveTire(),
+        closeSheet: () => this.setState({ sheet: null })
+      };
+    } else {
+      sheetVals = { sheetOpen: false, sheetNum: '', damaged: false, detailsOpen: false, photoRequired: false, hasPhotoThumb: false, keys: [], damageTypes: [] };
+    }
+
+    // admin
+    const tdefs = this.tableDefs();
+    const t = tdefs[s.admin];
+    const statInk = v => ({ 'Action required': '#D6403A', Action: '#D6403A', Overdue: '#D6403A', Watch: '#D9A100', 'No problems': '#1E9E6A', OK: '#1E9E6A', On: '#1E9E6A', Off: '#9AA3B2', Open: '#D9A100', Dispatched: '#3D46C4' }[v]);
+    const adminTitles = { dashboard: ['Dashboard', 'Fleet tire condition · today'], reports: ['Reports', 'Every submitted inspection'], trucks: ['Trucks', 'Tractor units and layouts'], trailers: ['Trailers', 'Trailer units and layouts'], drivers: ['Drivers & users', 'Access and terminals'], history: ['Tire history', 'Readings by wheel position'], tickets: ['Service tickets', 'Work opened from inspections'], settings: ['Integrations', 'Data in and out'] };
+
+    return Object.assign({
+      // chrome
+      stepLabel: { id: 'Step 1 of 3 · driver', equip: 'Step 2 of 3 · equipment', inspect: 'Step 3 of 3 · tires', summary: 'Review & submit' }[scr],
+      showProgress: scr === 'inspect' || scr === 'summary',
+      progressText: done + '/' + tires.length,
+      isId: scr === 'id', isEquip: scr === 'equip', isInspect: scr === 'inspect', isSummary: scr === 'summary',
+      showDiagram: scr === 'inspect' || scr === 'summary',
+      submitted: s.submitted,
+
+      // id screen
+      phone: s.phone, driverFound: found, phoneIncomplete: !found,
+      phoneHint: digits.length ? digits.length + ' of 10 digits' : 'No account yet? Ask dispatch to add your number.',
+      idBlocked: !found, primaryBg: found ? '#3D46C4' : '#C6CCD8',
+      onPhone: e => {
+        const d = e.target.value.replace(/\D/g, '').slice(0, 10);
+        let out = d;
+        if (d.length > 6) out = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+        else if (d.length > 3) out = '(' + d.slice(0, 3) + ') ' + d.slice(3);
+        else if (d.length) out = '(' + d;
+        this.setState({ phone: out });
+      },
+
+      // equipment
+      mode: s.mode, odo: s.odo, hub: s.hub,
+      needTruck: s.mode !== 'trailer', needTrailer: s.mode !== 'truck',
+      truckBorder: s.mode === 'truck' ? '#3D46C4' : '#DCE0EA', truckBg: s.mode === 'truck' ? '#EEF0FE' : '#fff', truckInk: s.mode === 'truck' ? '#3D46C4' : '#6B7488',
+      trailerBorder: s.mode === 'trailer' ? '#3D46C4' : '#DCE0EA', trailerBg: s.mode === 'trailer' ? '#EEF0FE' : '#fff', trailerInk: s.mode === 'trailer' ? '#3D46C4' : '#6B7488',
+      bothBorder: s.mode === 'both' ? '#3D46C4' : '#DCE0EA', bothBg: s.mode === 'both' ? '#EEF0FE' : '#fff', bothInk: s.mode === 'both' ? '#3D46C4' : '#6B7488',
+      setTruck: () => this.setState({ mode: 'truck' }), setTrailer: () => this.setState({ mode: 'trailer' }), setBoth: () => this.setState({ mode: 'both' }),
+      onOdo: e => this.setState({ odo: e.target.value }), onHub: e => this.setState({ hub: e.target.value }),
+      equipBlocked: s.mode !== 'trailer' && !s.odo, equipBtnBg: (s.mode !== 'trailer' && !s.odo) ? '#C6CCD8' : '#3D46C4',
+
+      // diagram
+      groups, showPos: p.showPositionLabels !== false,
+
+      // summary
+      issues, issueCount: issues.length, noIssues: issues.length === 0,
+      notes: s.notes, onNotes: e => this.setState({ notes: e.target.value }),
+      odoText: s.odo, dateText: 'Sep 1, 2026 · 9:41 AM',
+      verdictCode: crit ? 'ACTION' : (issues.length ? 'WATCH' : 'CLEAR'),
+      verdictInk: crit ? '#D6403A' : (issues.length ? '#D9A100' : '#1E9E6A'),
+      reviewLabel: done === tires.length ? 'Review inspection' : 'Review · ' + (tires.length - done) + ' left',
+      reviewBg: done === tires.length ? '#3D46C4' : '#101B3D',
+      submitLabel: crit ? 'Submit · ' + crit + ' critical' : 'Submit inspection',
+      submitBg: '#101B3D',
+
+      // nav
+      goId: () => this.setState({ screen: 'id' }),
+      goEquip: () => this.setState({ screen: 'equip' }),
+      goInspect: () => this.setState({ screen: 'inspect' }),
+      goSummary: () => this.setState({ screen: 'summary' }),
+      submit: () => this.setState({ submitted: true }),
+      reset: () => this.setState({ submitted: false, screen: 'id', edits: {}, notes: '' }),
+
+      // admin
+      adminIsDash: s.admin === 'dashboard', adminIsTable: s.admin !== 'dashboard',
+      adminTitle: adminTitles[s.admin][0], adminSub: adminTitles[s.admin][1],
+      nav: this.navDefs().map(n => ({
+        label: n.label, go: () => this.setState({ admin: n.id }),
+        bg: s.admin === n.id ? 'rgba(255,255,255,.1)' : 'transparent',
+        ink: s.admin === n.id ? '#fff' : 'rgba(255,255,255,.62)',
+        dot: s.admin === n.id ? '#6C4FD0' : 'rgba(255,255,255,.22)',
+        hasCount: n.count != null, count: n.count,
+        countBg: n.id === 'tickets' ? 'rgba(214,64,58,.22)' : 'rgba(255,255,255,.08)',
+        countInk: n.id === 'tickets' ? '#FF9C96' : 'rgba(255,255,255,.5)'
+      })),
+      kpis: [
+        { label: 'CRITICAL TIRES', value: '9', unit: 'across 6 units', note: '4 flagged out of service today', accent: '#D6403A', border: '#F6C9C6', target: 'tickets' },
+        { label: 'WARNINGS', value: '31', unit: 'watch list', note: 'Tread or PSI approaching limits', accent: '#D9A100', border: '#F1DFAE', target: 'reports' },
+        { label: 'INSPECTIONS DUE', value: '12', unit: 'of 68 units', note: '3 units overdue by 7+ days', accent: '#3D46C4', border: '#CDD3F3', target: 'trucks' },
+        { label: 'OPEN TICKETS', value: '7', unit: '2 overdue', note: 'Avg close time 2.4 days', accent: '#6C4FD0', border: '#D6CDF3', target: 'tickets' }
+      ].map(k => Object.assign({}, k, { go: () => this.setState({ admin: k.target }) })),
+      critRows: [
+        { unit: '4182', tire: 8, issue: 'Air loss · damaged', psi: '63', tread: '11.0', psiInk: '#D6403A', treadInk: '#1E9E6A', tag: 'OOS', tagInk: '#D6403A', tagBg: '#FDEDEC' },
+        { unit: '4033', tire: 1, issue: 'Steer tread below minimum', psi: '104', tread: '3.8', psiInk: '#D9A100', treadInk: '#D6403A', tag: 'OOS', tagInk: '#D6403A', tagBg: '#FDEDEC' },
+        { unit: '9142', tire: 13, issue: 'Dual tread mismatch 5.2/32', psi: '101', tread: '7.1', psiInk: '#D9A100', treadInk: '#D9A100', tag: 'TICKET', tagInk: '#3D46C4', tagBg: '#EEF0FE' },
+        { unit: '4021', tire: 6, issue: 'Overinflated', psi: '128', tread: '9.4', psiInk: '#D6403A', treadInk: '#1E9E6A', tag: 'REVIEW', tagInk: '#6C4FD0', tagBg: '#F1EDFC' },
+        { unit: '4108', tire: 15, issue: 'Exposed cord', psi: '108', tread: '2.6', psiInk: '#1E9E6A', treadInk: '#D6403A', tag: 'OOS', tagInk: '#D6403A', tagBg: '#FDEDEC' }
+      ],
+      bars: [
+        { label: 'Steer', value: '9.2/32', ink: '#1E9E6A', width: '62%' },
+        { label: 'Drive outer', value: '11.8/32', ink: '#1E9E6A', width: '78%' },
+        { label: 'Drive inner', value: '7.4/32', ink: '#D9A100', width: '49%' },
+        { label: 'Trailer', value: '12.6/32', ink: '#1E9E6A', width: '84%' }
+      ],
+      tickets: [
+        { title: 'Tire 8 air loss — replace', meta: 'Truck 4182 · Laredo Tire Co.', age: '2h', dot: '#D6403A' },
+        { title: 'Steer tread 3.8/32', meta: 'Truck 4033 · on-site', age: '1d', dot: '#D6403A' },
+        { title: 'Tires 13/14 mismatch', meta: 'Trailer 9142 · Fleet Serv DFW', age: '1d', dot: '#D9A100' },
+        { title: 'Inspection overdue 15 days', meta: 'Trailer 9033', age: '4d', dot: '#D9A100' }
+      ],
+      tableTitle: t ? t.title : '', tableCount: t ? t.count : '', tableGrid: t ? t.grid : '1fr', tableFoot: t ? t.foot : '',
+      tableCols: t ? t.cols.map(c => ({ label: c })) : [],
+      tableRows: t ? t.rows.map(r => ({
+        cells: r.map((v, i) => {
+          const ink = statInk(v);
+          if (i === 0) return { text: v, font: "700 12.5px/1.2 'IBM Plex Mono'", ink: '#101B3D' };
+          if (ink) return { text: v, font: "700 12px/1.2 'Barlow'", ink };
+          if (/^[\d,.\-—/() ]+$/.test(v)) return { text: v, font: "500 12.5px/1.2 'IBM Plex Mono'", ink: '#4B5468' };
+          return { text: v, font: "500 13px/1.3 'Barlow'", ink: '#4B5468' };
+        })
+      })) : []
+    }, sheetVals);
+  }
+}
+</script>
+</body>
+</html>
