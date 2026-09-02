@@ -1,3 +1,4 @@
+import { adminRo } from "./admin.ro";
 import type { Messages } from "./en";
 
 export const ro: Messages = {
@@ -69,7 +70,7 @@ export const ro: Messages = {
     front: "FAȚĂ",
     rear: "SPATE",
     spares: "Rezerve",
-    spareOptional: "Opțional",
+    spareOptional: "Obligatoriu",
     legend: {
       none: "Neverificată",
       green: "Bună",
@@ -86,6 +87,7 @@ export const ro: Messages = {
       title: "Înainte de trimitere",
       tire_incomplete: "Anvelopa {tire}: introdu valorile",
       photo_required: "Anvelopa {tire}: fotografie obligatorie",
+      spare_required: "Anvelopa {tire}: inspectează rezerva sau alege „Fără rezervă”",
       odometer_required: "Introdu kilometrajul camionului",
       truck_required: "Selectează un camion",
       trailer_required: "Selectează o remorcă",
@@ -116,6 +118,9 @@ export const ro: Messages = {
     size: "Dimensiune",
     notes: "Observații",
     aiEstimate: "Estimare AI: {value}/32 – încredere {confidence}%",
+    noSpare: "Fără rezervă",
+    noSpareHint: "Această unitate nu are rezervă în această poziție",
+    spareRequired: "Inspectează rezerva sau alege „Fără rezervă”",
     aiUse: "Folosește",
     aiIgnore: "Ignoră",
     aiAnalyzing: "Se analizează fotografia…",
@@ -189,4 +194,5 @@ export const ro: Messages = {
     columns: { tire: "Anvelopă", position: "Poziție", psi: "PSI", tread: "Profil", damage: "Deteriorare", status: "Stare" },
   },
   damage: { none: "Fără", repairable: "Reparabilă", non_repairable: "Nereparabilă / OOS" },
+  admin: adminRo,
 };

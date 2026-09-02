@@ -41,6 +41,10 @@ test("driver can verify, inspect a truck and see the report", async ({ page }) =
     }
     await sheet.getByRole("button", { name: "Done" }).click();
   }
+  // Spare 19: explicit "No spare"
+  await page.locator('[data-tire="19"]').click();
+  await page.getByTestId("no-spare").click();
+  await page.locator("[data-tire-sheet]").getByRole("button", { name: "Done" }).click();
   await page.screenshot({ path: "e2e/out/diagram-filled.png", fullPage: true });
 
   await page.getByTestId("submit").click();

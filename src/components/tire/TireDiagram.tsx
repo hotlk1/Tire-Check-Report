@@ -71,7 +71,7 @@ export function TireDiagram({ mode, readings, evaluation, selected, onSelect, la
         <section className="rounded-[var(--radius-lg)] border border-dashed border-border-strong bg-surface-2 px-3 py-2" data-spares>
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-3">{t("inspection.spares")}</span>
-            <span className="text-[11px] text-text-3">{t("inspection.spareOptional")}</span>
+            <span className="text-[11px] text-text-3">{t("inspection.spareOptional")} · {t("tire.spareRequired")}</span>
           </div>
           <div className="mt-2 flex items-center justify-center gap-8">
             {vehicles.map((v) => {
@@ -87,6 +87,7 @@ export function TireDiagram({ mode, readings, evaluation, selected, onSelect, la
                   status={ev?.overall ?? "none"}
                   psi={null}
                   tread32={r?.tread32 ?? null}
+                  absent={!!r?.absent}
                   requiresPsi={false}
                   selected={selected === n}
                   photoMissing={ev?.photoMissing}

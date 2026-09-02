@@ -1,3 +1,4 @@
+import { adminEs } from "./admin.es";
 import type { Messages } from "./en";
 
 export const es: Messages = {
@@ -69,7 +70,7 @@ export const es: Messages = {
     front: "FRENTE",
     rear: "ATRÁS",
     spares: "Repuestos",
-    spareOptional: "Opcional",
+    spareOptional: "Obligatorio",
     legend: {
       none: "Sin revisar",
       green: "Bien",
@@ -86,6 +87,7 @@ export const es: Messages = {
       title: "Antes de enviar",
       tire_incomplete: "Llanta {tire}: ingresa lecturas",
       photo_required: "Llanta {tire}: se requiere foto",
+      spare_required: "Llanta {tire}: inspecciona el repuesto o elige “Sin repuesto”",
       odometer_required: "Ingresa el odómetro del camión",
       truck_required: "Selecciona un camión",
       trailer_required: "Selecciona un remolque",
@@ -116,6 +118,9 @@ export const es: Messages = {
     size: "Medida",
     notes: "Notas",
     aiEstimate: "Estimación IA: {value}/32 – {confidence}% de confianza",
+    noSpare: "Sin repuesto",
+    noSpareHint: "Esta unidad no tiene repuesto en esta posición",
+    spareRequired: "Inspecciona el repuesto o elige “Sin repuesto”",
     aiUse: "Usar",
     aiIgnore: "Ignorar",
     aiAnalyzing: "Analizando foto…",
@@ -189,4 +194,5 @@ export const es: Messages = {
     columns: { tire: "Llanta", position: "Posición", psi: "PSI", tread: "Dibujo", damage: "Daño", status: "Estado" },
   },
   damage: { none: "Ninguno", repairable: "Reparable", non_repairable: "No reparable / OOS" },
+  admin: adminEs,
 };

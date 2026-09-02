@@ -57,6 +57,8 @@ export interface TireReading {
   damage: DamageStatus;
   /** Number of photos attached (used for validation only). */
   photoCount: number;
+  /** Spare positions only: the driver explicitly declared "No spare". */
+  absent?: boolean;
   tireMake?: string | null;
   tireModel?: string | null;
   tireSize?: string | null;
@@ -71,6 +73,8 @@ export interface TireEvaluation {
   /** Worst of psi/tread/damage; `none` while the tire is incomplete. */
   overall: Status;
   complete: boolean;
+  /** Spare declared absent ("No spare"). */
+  absent: boolean;
   photoRequired: boolean;
   photoMissing: boolean;
 }

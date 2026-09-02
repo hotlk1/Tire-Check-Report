@@ -15,12 +15,14 @@ interface Props {
   history: HistoryPoint[];
   isNew?: boolean;
   backHref: string;
+  /** Rendered inside the admin app: no top bar, no print button. */
+  embedded?: boolean;
 }
 
 function readingsOf(report: ReportData): Record<number, TireReading> {
   const out: Record<number, TireReading> = {};
   for (const t of report.tires) {
-    out[t.tire_number] = { number: t.tire_number, psi: t.psi, tread32: t.tread_32nds, damage: t.damage, photoCount: t.photos.length };
+    out[t.tire_number] = { number: t.tire_number, psi: t.psi, tread32: t.tread_32nds, damage: t.damage, photoCount: t.photos.length, absent: t.absent };
   }
   return out;
 }
@@ -33,7 +35,7 @@ function fmtMiles(v: number | null, unit: string) {
  * One-page, print-friendly report using the same diagram language as the
  * inspection screen. Tapping a tire opens its details, photos and history.
  */
-export function ReportView({ report, history, isNew, backHref }: Props) {
+export function ReportView({ report, history, isNew, backHref, embedded }: Props) {
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const readings = useMemo(() => readingsOf(report), [report]);
@@ -53,6 +55,7 @@ export function ReportView({ report, history, isNew, backHref }: Props) {
 
   return (
     <>
+      {embedded ? null : (
       <div className="no-print">
         <TopBar
           title={t("report.title")}
@@ -72,8 +75,9 @@ export function ReportView({ report, history, isNew, backHref }: Props) {
           }
         />
       </div>
+      )}
 
-      <main className="mx-auto w-full max-w-5xl px-3 py-4 md:px-6">
+      <main className={embedded ? "w-full p-3" : "mx-auto w-full max-w-5xl px-3 py-4 md:px-6"}>
         {isNew ? (
           <div className="no-print mb-3 flex items-center justify-between rounded-[var(--radius)] bg-status-green-soft px-4 py-2.5 text-[14px] font-semibold text-status-green">
             <span>✓ {t("report.thanks")}</span>
@@ -193,7 +197,7 @@ export function ReportView({ report, history, isNew, backHref }: Props) {
                             <td className="px-2 py-1.5 text-right tabular-nums" data-status={x?.tread_status ?? "none"} style={{ color: x?.tread_status && x.tread_status !== "none" && x.tread_status !== "green" ? "var(--s)" : undefined }}>
                               {x?.tread_32nds !== null && x?.tread_32nds !== undefined ? `${x.tread_32nds}/32` : "—"}
                             </td>
-                            <td className="px-2 py-1.5">{x ? t(`damage.${x.damage}`) : "—"}</td>
+                            <td className="px-2 py-1.5">{x ? (x.absent ? t("tire.noSpare") : t(`damage.${x.damage}`)) : "—"}</td>
                             <td className="px-2 py-1.5">
                               <StatusBadge status={x?.overall_status ?? "none"}>{t(`tire.status.${x?.overall_status ?? "none"}`)}</StatusBadge>
                             </td>
@@ -287,7 +291,9 @@ function TireDetail({ tire, number, history, onClose }: { tire: ReportTire | nul
           </button>
         </header>
         <div className="flex-1 overflow-y-auto px-4 pb-6">
-          {tire ? (
+          {tire?.absent ? (
+            <p className="text-[14px] font-semibold text-text-2">{t("tire.noSpare")}</p>
+          ) : tire ? (
             <>
               <div className="grid grid-cols-3 gap-2">
                 <Kpi label={t("tire.psi")} value={tire.psi ?? "—"} status={tire.psi_status} />

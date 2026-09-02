@@ -28,6 +28,8 @@ export interface DraftTire {
   tread32: number | null;
   damage: DamageStatus;
   photoIds: string[];
+  /** Spares only: driver declared "No spare". */
+  absent?: boolean;
   tireMake?: string;
   tireModel?: string;
   tireSize?: string;
@@ -113,6 +115,7 @@ export function toReadings(draft: InspectionDraft): Record<number, TireReading> 
       tread32: t.tread32,
       damage: t.damage,
       photoCount: t.photoIds.length,
+      absent: !!t.absent,
       tireMake: t.tireMake ?? null,
       tireModel: t.tireModel ?? null,
       tireSize: t.tireSize ?? null,
@@ -129,7 +132,7 @@ export function draftHasContent(draft: InspectionDraft): boolean {
     !!draft.truck ||
     !!draft.trailer ||
     draft.odometer !== null ||
-    Object.values(draft.tires).some((t) => t.psi !== null || t.tread32 !== null || t.damage !== "none" || t.photoIds.length > 0)
+    Object.values(draft.tires).some((t) => t.psi !== null || t.tread32 !== null || t.damage !== "none" || t.photoIds.length > 0 || t.absent)
   );
 }
 
@@ -142,9 +145,10 @@ export function toSubmission(draft: InspectionDraft, client?: InspectionSubmissi
   const allowed = new Set(tiresForMode(draft.mode));
   const tires = Object.values(draft.tires)
     .filter((t) => allowed.has(t.number))
-    .filter((t) => t.psi !== null || t.tread32 !== null || t.damage !== "none" || t.photoIds.length > 0)
+    .filter((t) => t.psi !== null || t.tread32 !== null || t.damage !== "none" || t.photoIds.length > 0 || t.absent)
     .map((t) => ({
       number: t.number,
+      absent: !!t.absent,
       psi: t.psi,
       tread32: t.tread32,
       damage: t.damage,

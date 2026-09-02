@@ -1,3 +1,4 @@
+import { adminEn } from "./admin.en";
 /**
  * English (default). Keys are dot paths; other locales must provide the same keys
  * (enforced by the i18n test). Interpolation uses {name} placeholders.
@@ -71,7 +72,7 @@ export const en = {
     front: "FRONT",
     rear: "REAR",
     spares: "Spares",
-    spareOptional: "Optional",
+    spareOptional: "Required",
     legend: {
       none: "Not checked",
       green: "Good",
@@ -88,6 +89,7 @@ export const en = {
       title: "Before you submit",
       tire_incomplete: "Tire {tire}: enter readings",
       photo_required: "Tire {tire}: photo required",
+      spare_required: "Tire {tire}: inspect the spare or select “No spare”",
       odometer_required: "Enter the truck odometer",
       truck_required: "Select a truck",
       trailer_required: "Select a trailer",
@@ -118,6 +120,9 @@ export const en = {
     size: "Size",
     notes: "Notes",
     aiEstimate: "AI estimate: {value}/32 – {confidence}% confidence",
+    noSpare: "No spare",
+    noSpareHint: "This unit has no spare in this position",
+    spareRequired: "Inspect the spare or select “No spare”",
     aiUse: "Use",
     aiIgnore: "Ignore",
     aiAnalyzing: "Analyzing photo…",
@@ -191,6 +196,7 @@ export const en = {
     columns: { tire: "Tire", position: "Position", psi: "PSI", tread: "Tread", damage: "Damage", status: "Status" },
   },
   damage: { none: "None", repairable: "Repairable", non_repairable: "Non-repairable / OOS" },
+  admin: adminEn,
 } as const;
 
 type DeepWiden<T> = { [K in keyof T]: T[K] extends string ? string : DeepWiden<T[K]> };

@@ -156,6 +156,13 @@ textarea {
 .tire[data-status="none"] {
   background: linear-gradient(180deg, #6b7280 0%, #4b5563 100%);
 }
+.tire[data-absent="true"] {
+  background: var(--surface-2);
+  color: var(--text-3);
+  box-shadow: 0 0 0 var(--ring) transparent;
+  border: 2px dashed var(--border-strong);
+}
+.tire[data-absent="true"]::before { display: none; }
 .tire:active { transform: scale(0.96); }
 .tire[data-selected="true"] {
   box-shadow: 0 0 0 var(--ring) var(--s), 0 0 0 calc(var(--ring) + 3px) var(--accent-soft), var(--shadow);

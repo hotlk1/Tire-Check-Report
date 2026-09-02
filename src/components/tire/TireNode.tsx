@@ -14,6 +14,8 @@ export interface TireNodeProps {
   showValues?: boolean;
   onSelect?: (number: number) => void;
   size?: "sm" | "md" | "lg";
+  /** Spare declared "No spare": rendered as an empty dashed slot. */
+  absent?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ export interface TireNodeProps {
  * (gray = not checked, green / yellow / red per thresholds). Loud states are
  * expressed through the ring, not the whole component.
  */
-export function TireNode({ number, abbreviation, status, psi, tread32, requiresPsi = true, selected, photoMissing, showValues = true, onSelect, size = "md" }: TireNodeProps) {
+export function TireNode({ number, abbreviation, status, psi, tread32, requiresPsi = true, selected, photoMissing, showValues = true, onSelect, size = "md", absent }: TireNodeProps) {
   const dims = size === "sm" ? { w: 36, h: 50 } : size === "lg" ? { w: 56, h: 76 } : { w: 46, h: 64 };
   const hasPsi = psi !== null && psi !== undefined;
   const hasTread = tread32 !== null && tread32 !== undefined;
@@ -34,6 +36,7 @@ export function TireNode({ number, abbreviation, status, psi, tread32, requiresP
         className="tire"
         style={{ ["--tire-w" as string]: `${dims.w}px`, ["--tire-h" as string]: `${dims.h}px` }}
         data-status={status}
+        data-absent={absent ? "true" : "false"}
         data-selected={selected ? "true" : "false"}
         data-photo-missing={photoMissing ? "true" : "false"}
         data-tire={number}
@@ -41,8 +44,8 @@ export function TireNode({ number, abbreviation, status, psi, tread32, requiresP
         aria-pressed={onSelect ? !!selected : undefined}
         onClick={onSelect ? () => onSelect(number) : undefined}
       >
-        <span className="n">{number}</span>
-        {value ? <span className="v">{value}</span> : null}
+        <span className="n">{absent ? "—" : number}</span>
+        {absent ? <span className="v">{number}</span> : value ? <span className="v">{value}</span> : null}
       </Tag>
       <div className="tire-label">{abbreviation}</div>
     </div>

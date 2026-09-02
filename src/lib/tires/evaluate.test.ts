@@ -108,8 +108,9 @@ describe("evaluateInspection + blockingIssues", () => {
     expect(ev.axles["truck-drive-2"].complete).toBe(true);
   });
 
-  it("ready to submit when everything is filled", () => {
-    expect(blockingIssues({ mode: "truck", truckSelected: true, trailerSelected: false, odometer: 120000, readings: truckAllGood })).toEqual([]);
+  it("ready to submit when everything is filled and the spare is addressed", () => {
+    const readings = { ...truckAllGood, 19: r(19, null, null, { absent: true }) };
+    expect(blockingIssues({ mode: "truck", truckSelected: true, trailerSelected: false, odometer: 120000, readings })).toEqual([]);
   });
 
   it("blocks on missing odometer, tire, and photo", () => {
@@ -121,15 +122,38 @@ describe("evaluateInspection + blockingIssues", () => {
   });
 
   it("trailer-only does not require odometer or truck", () => {
-    const readings: Record<number, TireReading> = {};
+    const readings: Record<number, TireReading> = { 20: r(20, null, 9) };
     for (const n of requiredTiresForMode("trailer")) readings[n] = r(n, 102, 12);
     expect(blockingIssues({ mode: "trailer", truckSelected: false, trailerSelected: true, odometer: null, readings })).toEqual([]);
   });
 
-  it("untouched spare is optional, touched spare must be complete", () => {
-    const readings = { ...truckAllGood, 19: r(19, null, null, { damage: "repairable" }) };
-    const issues = blockingIssues({ mode: "truck", truckSelected: true, trailerSelected: false, odometer: 1, readings });
-    expect(issues).toContainEqual({ kind: "tire_incomplete", tire: 19 });
-    expect(issues).toContainEqual({ kind: "photo_required", tire: 19 });
+  it("spares require a reading or an explicit 'No spare'", () => {
+    const base = { mode: "truck" as const, truckSelected: true, trailerSelected: false, odometer: 1 };
+    // untouched → must be addressed
+    expect(blockingIssues({ ...base, readings: truckAllGood })).toContainEqual({ kind: "spare_required", tire: 19 });
+    // touched but incomplete
+    const touched = { ...truckAllGood, 19: r(19, null, null, { damage: "repairable" }) };
+    expect(blockingIssues({ ...base, readings: touched })).toContainEqual({ kind: "tire_incomplete", tire: 19 });
+    expect(blockingIssues({ ...base, readings: touched })).toContainEqual({ kind: "photo_required", tire: 19 });
+    // explicit no spare → fine
+    const absent = { ...truckAllGood, 19: r(19, null, null, { absent: true }) };
+    expect(blockingIssues({ ...base, readings: absent })).toEqual([]);
+    expect(evaluateTire(r(19, null, null, { absent: true })).absent).toBe(true);
+    // inspected → fine
+    const inspected = { ...truckAllGood, 19: r(19, null, 10) };
+    expect(blockingIssues({ ...base, readings: inspected })).toEqual([]);
+  });
+
+  it("photo is mandatory for damaged, low-tread (yellow/red) and OOS tires", () => {
+    const base = { mode: "truck" as const, truckSelected: true, trailerSelected: false, odometer: 1 };
+    const withSpare = { ...truckAllGood, 19: r(19, null, null, { absent: true }) };
+    const damaged = { ...withSpare, 3: r(3, 102, 12, { damage: "repairable" }) };
+    const low = { ...withSpare, 4: r(4, 102, 5) };
+    const oos = { ...withSpare, 5: r(5, 102, 12, { damage: "non_repairable" }) };
+    expect(blockingIssues({ ...base, readings: damaged })).toContainEqual({ kind: "photo_required", tire: 3 });
+    expect(blockingIssues({ ...base, readings: low })).toContainEqual({ kind: "photo_required", tire: 4 });
+    expect(blockingIssues({ ...base, readings: oos })).toContainEqual({ kind: "photo_required", tire: 5 });
+    const ok = { ...withSpare, 3: r(3, 102, 12, { damage: "repairable", photoCount: 1 }), 4: r(4, 102, 5, { photoCount: 1 }), 5: r(5, 102, 12, { damage: "non_repairable", photoCount: 2 }) };
+    expect(blockingIssues({ ...base, readings: ok })).toEqual([]);
   });
 });

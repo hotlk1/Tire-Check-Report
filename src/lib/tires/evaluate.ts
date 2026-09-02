@@ -10,6 +10,9 @@ import type { AxleComparison, DualPairComparison, InspectionEvaluation, Inspecti
 
 export function evaluateTire(reading: TireReading, config: ThresholdConfig = DEFAULT_THRESHOLDS): TireEvaluation {
   const pos = getPosition(reading.number);
+  if (pos.positionClass === "spare" && reading.absent) {
+    return { number: reading.number, psiStatus: "none", treadStatus: "none", damageStatus: "none", overall: "none", complete: true, absent: true, photoRequired: false, photoMissing: false };
+  }
   const tStatus = treadStatus(reading.tread32, pos.positionClass, config);
   const pStatus = pos.requiresPsi ? psiStatus(reading.psi, pos.positionClass, config) : "none";
   const damageStatus: Status = reading.damage === "non_repairable" ? "red" : reading.damage === "repairable" ? "yellow" : "none";
@@ -30,6 +33,7 @@ export function evaluateTire(reading: TireReading, config: ThresholdConfig = DEF
     damageStatus,
     overall,
     complete,
+    absent: false,
     photoRequired,
     photoMissing,
   };
@@ -116,7 +120,7 @@ export function evaluateInspection(
     tires[n] = ev;
     const spare = getPosition(n).positionClass === "spare";
     if (!spare) summary.total += 1;
-    if (ev.complete) {
+    if (ev.complete && !ev.absent) {
       if (!spare) summary.completed += 1;
       if (ev.overall === "red") summary.red += 1;
       else if (ev.overall === "yellow") summary.yellow += 1;
@@ -138,6 +142,7 @@ export function evaluateInspection(
 /** Reasons an inspection cannot be submitted yet. Empty array = ready. */
 export type BlockingIssue =
   | { kind: "tire_incomplete"; tire: number }
+  | { kind: "spare_required"; tire: number }
   | { kind: "photo_required"; tire: number }
   | { kind: "odometer_required" }
   | { kind: "truck_required" }
@@ -165,8 +170,8 @@ export function blockingIssues(input: {
     const reading = input.readings[n];
     const touched = !!reading && (reading.psi !== null || reading.tread32 !== null || reading.damage !== "none" || reading.photoCount > 0);
     if (!spare && !t.complete) issues.push({ kind: "tire_incomplete", tire: n });
-    // Spares are optional but, once touched, must be complete.
-    if (spare && touched && !t.complete) issues.push({ kind: "tire_incomplete", tire: n });
+    // Spares are never silently skipped: either a tread/damage reading or an explicit "No spare".
+    if (spare && !t.complete) issues.push({ kind: touched ? "tire_incomplete" : "spare_required", tire: n });
     if (t.photoMissing) issues.push({ kind: "photo_required", tire: n });
   }
   return issues;

@@ -78,6 +78,26 @@ export function TireSheet({ tire, evaluation, photos, analyzing, onChange, onAdd
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {pos.positionClass === "spare" ? (
+            <div className="mb-3 flex items-center justify-between rounded-[var(--radius)] border border-border bg-surface-2 px-3 py-2.5">
+              <div>
+                <div className="text-[14px] font-semibold">{t("tire.noSpare")}</div>
+                <div className="text-[12px] text-text-3">{t("tire.noSpareHint")}</div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!tire.absent}
+                data-testid="no-spare"
+                onClick={() => onChange(tire.absent ? { absent: false } : { absent: true, psi: null, tread32: null, damage: "none", aiSuggestion: null })}
+                className={"relative h-7 w-12 flex-none rounded-full transition " + (tire.absent ? "bg-accent" : "bg-border-strong")}
+              >
+                <span className={"absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition " + (tire.absent ? "left-[22px]" : "left-0.5")} />
+              </button>
+            </div>
+          ) : null}
+          {tire.absent ? null : (
+          <>
           <div className={"grid gap-3 " + (pos.requiresPsi ? "grid-cols-2" : "grid-cols-1")}>
             {pos.requiresPsi ? (
               <div>
@@ -195,6 +215,8 @@ export function TireSheet({ tire, evaluation, photos, analyzing, onChange, onAdd
               </div>
             ) : null}
           </div>
+          </>
+          )}
         </div>
 
         <footer className="flex items-center gap-2 border-t border-border px-4 py-3">

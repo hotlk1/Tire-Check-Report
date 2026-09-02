@@ -1,3 +1,4 @@
+import { adminRu } from "./admin.ru";
 import type { Messages } from "./en";
 
 export const ru: Messages = {
@@ -69,7 +70,7 @@ export const ru: Messages = {
     front: "ПЕРЕД",
     rear: "ЗАД",
     spares: "Запаски",
-    spareOptional: "Необязательно",
+    spareOptional: "Обязательно",
     legend: {
       none: "Не проверена",
       green: "Хорошо",
@@ -86,6 +87,7 @@ export const ru: Messages = {
       title: "Перед отправкой",
       tire_incomplete: "Шина {tire}: введите показания",
       photo_required: "Шина {tire}: нужна фотография",
+      spare_required: "Шина {tire}: проверьте запаску или выберите «Нет запаски»",
       odometer_required: "Введите показание одометра тягача",
       truck_required: "Выберите тягач",
       trailer_required: "Выберите прицеп",
@@ -116,6 +118,9 @@ export const ru: Messages = {
     size: "Размер",
     notes: "Примечания",
     aiEstimate: "Оценка ИИ: {value}/32 – уверенность {confidence}%",
+    noSpare: "Нет запаски",
+    noSpareHint: "На этой единице нет запаски в этой позиции",
+    spareRequired: "Проверьте запаску или выберите «Нет запаски»",
     aiUse: "Использовать",
     aiIgnore: "Игнорировать",
     aiAnalyzing: "Анализ фотографии…",
@@ -189,4 +194,5 @@ export const ru: Messages = {
     columns: { tire: "Шина", position: "Позиция", psi: "PSI", tread: "Протектор", damage: "Повреждение", status: "Статус" },
   },
   damage: { none: "Нет", repairable: "Ремонтопригодна", non_repairable: "Не подлежит ремонту / OOS" },
+  admin: adminRu,
 };
