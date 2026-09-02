@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
 // Allow a pre-installed Chromium (e.g. remote sandboxes) via PW_CHROMIUM_PATH.
-const executablePath = process.env.PW_CHROMIUM_PATH ?? (existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
+const executablePath = process.env.PW_CHROMIUM_PATH ?? (process.env.CI ? undefined : existsSync("/opt/pw-browsers/chromium") ? "/opt/pw-browsers/chromium" : undefined);
 
 export default defineConfig({
   testDir: "./e2e",

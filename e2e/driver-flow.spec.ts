@@ -37,23 +37,23 @@ test("driver can verify, inspect a truck, review and see the report", async ({ p
   writeFileSync("e2e/out/console.log", "");
   page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") appendFileSync("e2e/out/console.log", `[${m.type()}] ${m.text().slice(0, 4000)}\n\n`); });
   page.on("pageerror", (e) => appendFileSync("e2e/out/console.log", `[pageerror] ${String(e).slice(0, 4000)}\n\n`));
-  await page.goto("/t/jgg");
+  await page.goto(`/t/${TENANT}`);
   // Screenshot only after hydration: Playwright's caret hiding injects a style attribute on the
   // auto-focused input, which would otherwise register as a (test-only) hydration mismatch.
   await page.waitForLoadState("networkidle");
   await page.screenshot({ path: "e2e/out/d1-phone.png", fullPage: true, caret: "initial" });
-  await page.getByTestId("phone").fill("5550000001");
+  await page.getByTestId("phone").fill(PHONE);
   await expect(page.getByTestId("matched")).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: "e2e/out/d1-phone-matched.png", fullPage: true });
   await page.getByTestId("continue").click();
-  await page.waitForURL(/\/t\/jgg\/inspect/);
+  await page.waitForURL(new RegExp(`/t/${TENANT}/inspect`));
 
   const startNew = page.getByTestId("start-new");
   if (await startNew.isVisible({ timeout: 1500 }).catch(() => false)) await startNew.click();
 
   await page.locator('[data-mode="truck"]').click();
-  await page.getByPlaceholder(/unit number/i).first().fill("T101");
-  await page.getByRole("button", { name: /JGG-T101/ }).click();
+  await page.getByPlaceholder(/unit number/i).first().fill(TRUCK_QUERY);
+  await page.getByRole("button", { name: new RegExp(TRUCK_NAME) }).click();
   await page.getByTestId("odometer").fill("123456");
   await page.screenshot({ path: "e2e/out/d2-equipment.png", fullPage: true });
   await page.getByTestId("start-inspection").click();

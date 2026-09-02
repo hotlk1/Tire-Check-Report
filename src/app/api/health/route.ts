@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
  * can be read by anyone verifying an environment; never echoes values.
  */
 export async function GET() {
-  const checks: Record<string, unknown> = { tier: tier(), node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null };
+  const checks: Record<string, unknown> = { node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null };
   try {
     const e = env();
+    checks.tier = tier();
     checks.config = {
       database: !!e.DATABASE_URL,
       databaseSource: process.env.DATABASE_URL ? "DATABASE_URL" : process.env.POSTGRES_URL ? "POSTGRES_URL" : process.env.POSTGRES_PRISMA_URL ? "POSTGRES_PRISMA_URL" : null,

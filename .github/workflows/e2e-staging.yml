@@ -1,0 +1,52 @@
+name: E2E staging smoke test
+
+# Runs the driver flow (phone → equipment → tires → photo → submit → report)
+# against a deployed HTTPS URL. Manual: Actions → "E2E staging smoke test" → Run.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Deployment URL to test
+        required: true
+        default: https://tire-check-staging-git-claude-tire-in-3e1c9b-ion-7374s-projects.vercel.app
+      tenant:
+        description: Tenant slug
+        required: true
+        default: test
+      phone:
+        description: Driver phone (10 digits)
+        required: true
+        default: "5550001234"
+      truck_query:
+        description: Text typed into the truck search
+        required: true
+        default: T-100
+      truck_name:
+        description: Unit number shown in the result
+        required: true
+        default: T-100
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      E2E_BASE_URL: ${{ inputs.base_url }}
+      E2E_TENANT: ${{ inputs.tenant }}
+      E2E_PHONE: ${{ inputs.phone }}
+      E2E_TRUCK_QUERY: ${{ inputs.truck_query }}
+      E2E_TRUCK_NAME: ${{ inputs.truck_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: mkdir -p e2e/out && npx playwright test e2e/driver-flow.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: e2e/out
