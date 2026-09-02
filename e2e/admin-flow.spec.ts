@@ -15,7 +15,7 @@ test("admin can sign in, see the dashboard, edit a report, manage drivers and pu
   await page.waitForURL(/\/admin$/);
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   await expect(page.getByText(/Operational view of JGG/)).toBeVisible();
-  await page.screenshot({ path: "e2e/out/admin-dashboard.png", fullPage: true });
+  await page.screenshot({ path: "e2e/out/a1-dashboard.png", fullPage: true });
 
   // KPI drill-down → tires list filtered
   await page.getByRole("link", { name: /Yellow warnings/ }).click();
@@ -32,7 +32,7 @@ test("admin can sign in, see the dashboard, edit a report, manage drivers and pu
   await page.waitForURL(/saved=1/);
   await expect(page.getByText("Saved").first()).toBeVisible();
   await expect(page.locator("text=tire_entry").first()).toBeVisible();
-  await page.screenshot({ path: "e2e/out/admin-report.png", fullPage: true });
+  await page.screenshot({ path: "e2e/out/a2-report.png", fullPage: true });
 
   // Drivers: add one, then it appears in the list; invalid phone is rejected
   await page.goto("/admin/drivers?add=1");
@@ -40,24 +40,28 @@ test("admin can sign in, see the dashboard, edit a report, manage drivers and pu
   await page.getByTestId("driver-phone").fill("555-123");
   await page.getByTestId("driver-save").click();
   await expect(page.getByText("Phone must be 10 US digits")).toBeVisible();
-  await page.getByTestId("driver-name").fill("E2E Driver");
-  await page.getByTestId("driver-phone").fill("(555) 777-1212");
+  const phone = "555" + String(Math.floor(1000000 + Math.random() * 8999999));
+  const driverName = `E2E Driver ${phone.slice(-4)}`;
+  await page.getByTestId("driver-name").fill(driverName);
+  await page.getByTestId("driver-phone").fill(phone);
   await page.getByTestId("driver-save").click();
   await page.waitForURL(/saved=1/);
-  await expect(page.getByText("E2E Driver")).toBeVisible();
+  await expect(page.getByText(driverName)).toBeVisible();
 
   // Users: invite an editor (dev auth provider assigns an id)
-  await page.getByTestId("invite-email").fill("e2e-editor@dev.local");
+  const email = `e2e-editor-${Date.now()}@dev.local`;
+  await page.getByTestId("invite-email").fill(email);
   await page.getByTestId("invite-submit").click();
   await page.waitForURL(/saved=1/);
-  await expect(page.getByText("e2e-editor@dev.local")).toBeVisible();
+  await expect(page.getByText(email)).toBeVisible();
 
   // Trucks: add an asset and open its detail
   await page.goto("/admin/trucks?add=1");
-  await page.getByTestId("unit-number").fill("JGG-E2E-1");
+  const unit = `JGG-E2E-${Date.now() % 100000}`;
+  await page.getByTestId("unit-number").fill(unit);
   await page.getByRole("button", { name: "Save" }).click();
   await page.waitForURL(/\/admin\/trucks\/[0-9a-f-]+\?saved=1/);
-  await expect(page.getByRole("heading", { name: "JGG-E2E-1" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: unit })).toBeVisible();
 
   // Settings: publish a new threshold version and see it in the history + audit
   await page.goto("/admin/settings");
@@ -66,13 +70,13 @@ test("admin can sign in, see the dashboard, edit a report, manage drivers and pu
   await page.getByTestId("publish-thresholds").click();
   await page.waitForURL(/saved=1/);
   await expect(page.getByText("e2e change").first()).toBeVisible();
-  await expect(page.getByText(/JGG v1/).first()).toBeVisible();
-  await page.screenshot({ path: "e2e/out/admin-settings.png", fullPage: true });
+  await expect(page.getByText(/JGG v\d+/).first()).toBeVisible();
+  await page.screenshot({ path: "e2e/out/a3-settings.png", fullPage: true });
 
   // Tenant switch (super admin) → ZSP shows its own data only
   await page.getByTestId("tenant-switcher").selectOption("zsp");
   await page.waitForURL(/\/admin$/);
   await expect(page.getByText(/Operational view of ZSP/)).toBeVisible();
   await page.goto("/admin/drivers");
-  await expect(page.getByText("E2E Driver")).toHaveCount(0);
+  await expect(page.getByText(driverName)).toHaveCount(0);
 });

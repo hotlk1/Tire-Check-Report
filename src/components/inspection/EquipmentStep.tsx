@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/client";
-import { Button, Card, Input, Label, cx } from "@/components/ui";
 import { apiJson } from "@/lib/client/api";
 import type { DraftAsset, InspectionDraft } from "@/lib/inspection/draft";
 import type { InspectionMode } from "@/lib/tires/types";
@@ -17,18 +16,16 @@ interface AssetHit {
   last_odometer: number | null;
 }
 
-function AssetPicker({ type, value, onPick }: { type: "truck" | "trailer"; value: DraftAsset | null; onPick: (a: DraftAsset | null, hit?: AssetHit) => void }) {
+function AssetPicker({ type, value, onPick }: { type: "truck" | "trailer"; value: DraftAsset | null; onPick: (a: DraftAsset | null) => void }) {
   const t = useT();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<AssetHit[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (value) return;
     let cancelled = false;
     const id = setTimeout(async () => {
-      setLoading(true);
       try {
         const data = await apiJson<{ assets: AssetHit[] }>(`/api/driver/assets?type=${type}&q=${encodeURIComponent(q)}`);
         if (!cancelled) {
@@ -37,8 +34,6 @@ function AssetPicker({ type, value, onPick }: { type: "truck" | "trailer"; value
         }
       } catch {
         if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }, 180);
     return () => {
@@ -49,45 +44,51 @@ function AssetPicker({ type, value, onPick }: { type: "truck" | "trailer"; value
 
   if (value) {
     return (
-      <div className="flex items-center justify-between rounded-[var(--radius)] border border-accent/40 bg-accent-soft px-3 py-2.5">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-accent">{t("equipment.selected")}</div>
-          <div className="text-[16px] font-bold">{value.unitNumber}</div>
-          {value.label ? <div className="text-[12px] text-text-2">{value.label}</div> : null}
+      <div className="unit-row" style={{ marginTop: 10 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--st-ok)", flex: "none" }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="h3">{value.unitNumber}</div>
+          {value.label ? <div style={{ font: "500 11.5px/1.2 var(--font-sans)", color: "var(--muted)", marginTop: 2 }}>{value.label}</div> : null}
         </div>
-        <Button size="sm" variant="ghost" type="button" onClick={() => onPick(null)}>
+        <button type="button" className="a-link" onClick={() => onPick(null)}>
           {t("equipment.change")}
-        </Button>
+        </button>
       </div>
     );
   }
-
   return (
-    <div>
-      <Input
-        placeholder={t(type === "truck" ? "equipment.searchTruck" : "equipment.searchTrailer")}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        autoCapitalize="characters"
-        autoComplete="off"
-        inputMode="search"
-        aria-label={t(type === "truck" ? "equipment.searchTruck" : "equipment.searchTrailer")}
-      />
-      <div className="mt-2 max-h-56 overflow-y-auto rounded-[var(--radius)] border border-border bg-surface">
-        {error ? <div className="px-3 py-3 text-[13px] text-status-red">{t("app.offline")}</div> : null}
-        {!error && !loading && hits.length === 0 ? <div className="px-3 py-3 text-[13px] text-text-3">{t("equipment.noResults")}</div> : null}
+    <div style={{ marginTop: 10 }}>
+      <div className="field" style={{ height: 50 }}>
+        <input
+          style={{ font: "500 15px/1 var(--font-sans)" }}
+          placeholder={t(type === "truck" ? "equipment.searchTruck" : "equipment.searchTrailer")}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          autoCapitalize="characters"
+          autoComplete="off"
+          inputMode="search"
+          aria-label={t(type === "truck" ? "equipment.searchTruck" : "equipment.searchTrailer")}
+        />
+      </div>
+      <div className="pill-list scr" style={{ marginTop: 8, maxHeight: 220, overflowY: "auto" }}>
+        {error ? <div style={{ padding: "12px 14px", font: "500 13px/1 var(--font-sans)", color: "var(--st-crit)" }}>{t("app.offline")}</div> : null}
+        {!error && hits.length === 0 ? <div style={{ padding: "12px 14px", font: "500 13px/1 var(--font-sans)", color: "var(--muted)" }}>{t("equipment.noResults")}</div> : null}
         {hits.map((h) => (
-          <button
-            key={h.id}
-            type="button"
-            className="flex w-full items-center justify-between border-b border-border px-3 py-2.5 text-left last:border-b-0 hover:bg-surface-2 active:bg-surface-3"
-            onClick={() => onPick({ id: h.id, unitNumber: h.unit_number, label: [h.year, h.make, h.model].filter(Boolean).join(" ") || null }, h)}
-          >
-            <span className="text-[15px] font-semibold">{h.unit_number}</span>
-            <span className="text-[12px] text-text-3">{[h.year, h.make, h.model].filter(Boolean).join(" ")}</span>
+          <button key={h.id} type="button" onClick={() => onPick({ id: h.id, unitNumber: h.unit_number, label: [h.year, h.make, h.model].filter(Boolean).join(" ") || null })}>
+            <span style={{ font: "700 15px/1 var(--font-sans)", color: "var(--ink)" }}>{h.unit_number}</span>
+            <span style={{ font: "500 12px/1 var(--font-sans)", color: "var(--muted)" }}>{[h.year, h.make, h.model].filter(Boolean).join(" ")}</span>
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function MiField({ value, onChange, placeholder, testId, label }: { value: number | null; onChange: (v: number | null) => void; placeholder: string; testId: string; label: string }) {
+  return (
+    <div className="field" style={{ marginTop: 7 }}>
+      <input inputMode="numeric" pattern="[0-9]*" placeholder={placeholder} value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")))} aria-label={label} data-testid={testId} />
+      <span className="field-suffix">MI</span>
     </div>
   );
 }
@@ -96,93 +97,75 @@ interface Props {
   draft: InspectionDraft;
   onChange: (patch: Partial<InspectionDraft>) => void;
   onStart: () => void;
+  onBack: () => void;
 }
 
-export function EquipmentStep({ draft, onChange, onStart }: Props) {
+/** "What are you inspecting?" (design §1a step 2). */
+export function EquipmentStep({ draft, onChange, onStart, onBack }: Props) {
   const t = useT();
   const mode = draft.mode;
   const needsTruck = mode === "truck" || mode === "truck_trailer";
   const needsTrailer = mode === "trailer" || mode === "truck_trailer";
   const ready = !!mode && (!needsTruck || (draft.truck && draft.odometer !== null && draft.odometer > 0)) && (!needsTrailer || draft.trailer);
-
-  const modes: Array<[InspectionMode, string, string]> = [
-    ["truck", t("equipment.truckOnly"), "🚛"],
-    ["trailer", t("equipment.trailerOnly"), "🚚"],
-    ["truck_trailer", t("equipment.both"), "🚛🚚"],
+  const modes: Array<[InspectionMode, string]> = [
+    ["truck", t("equipment.truck")],
+    ["trailer", t("equipment.trailer")],
+    ["truck_trailer", t("equipment.both")],
   ];
-
   return (
-    <div className="mx-auto w-full max-w-lg px-4 pb-28 pt-4">
-      <h1 className="text-[20px] font-bold tracking-tight">{t("equipment.title")}</h1>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {modes.map(([m, label, icon]) => (
-          <button
-            key={m}
-            type="button"
-            data-mode={m}
-            onClick={() => onChange({ mode: m })}
-            className={cx(
-              "flex flex-col items-center justify-center gap-1 rounded-[var(--radius-lg)] border-2 px-2 py-3 text-[13px] font-semibold transition",
-              mode === m ? "border-accent bg-accent-soft text-accent" : "border-border bg-surface text-text-2",
-            )}
-          >
-            <span className="text-2xl leading-none">{icon}</span>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {needsTruck ? (
-        <Card className="mt-4 p-4">
-          <Label>{t("equipment.truck")}</Label>
-          <AssetPicker
-            type="truck"
-            value={draft.truck}
-            onPick={(a, hit) => onChange({ truck: a, odometer: a && hit?.last_odometer && draft.odometer === null ? null : draft.odometer })}
-          />
-          <div className="mt-3">
-            <Label hint={t("equipment.odometerHint")}>{t("equipment.odometer")} *</Label>
-            <input
-              className="num-input"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="—"
-              value={draft.odometer ?? ""}
-              onChange={(e) => onChange({ odometer: e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")) })}
-              aria-label={t("equipment.odometer")}
-            />
-          </div>
-        </Card>
-      ) : null}
-
-      {needsTrailer ? (
-        <Card className="mt-4 p-4">
-          <Label>{t("equipment.trailer")}</Label>
-          <AssetPicker type="trailer" value={draft.trailer} onPick={(a) => onChange({ trailer: a })} />
-          <div className="mt-3">
-            <Label hint={t("equipment.hubometerHint")}>
-              {t("equipment.hubometer")} <span className="font-normal text-text-3">({t("app.optional")})</span>
-            </Label>
-            <input
-              className="num-input"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="—"
-              value={draft.hubometer ?? ""}
-              onChange={(e) => onChange({ hubometer: e.target.value === "" ? null : Number(e.target.value.replace(/\D/g, "")) })}
-              aria-label={t("equipment.hubometer")}
-            />
-          </div>
-        </Card>
-      ) : null}
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: "calc(12px + var(--safe-bottom))" }}>
-        <div className="mx-auto max-w-lg">
-          <Button className="w-full" size="lg" disabled={!ready} onClick={onStart} data-testid="start-inspection">
-            {t("equipment.start")}
-          </Button>
+    <>
+      <div className="scr mx-auto w-full max-w-lg flex-1 overflow-auto" style={{ padding: "26px 20px 20px", minHeight: 0 }}>
+        <div className="h2">{t("equipment.title")}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 16 }}>
+          {modes.map(([m, label]) => (
+            <button key={m} type="button" className="mode-btn" data-active={mode === m} data-mode={m} onClick={() => onChange({ mode: m })}>
+              {m === "truck" ? <span style={{ width: 34, height: 14, borderRadius: 3, background: "currentColor", opacity: 0.85 }} /> : null}
+              {m === "trailer" ? <span style={{ width: 44, height: 11, borderRadius: 2, background: "currentColor", opacity: 0.85 }} /> : null}
+              {m === "truck_trailer" ? (
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <span style={{ width: 20, height: 14, borderRadius: 3, background: "currentColor", opacity: 0.85 }} />
+                  <span style={{ width: 26, height: 11, borderRadius: 2, background: "currentColor", opacity: 0.85 }} />
+                </span>
+              ) : null}
+              {label}
+            </button>
+          ))}
         </div>
+
+        {needsTruck ? (
+          <div className="card-sm" style={{ marginTop: 22, padding: 16 }}>
+            <div className="label">{t("design.tractor")}</div>
+            <AssetPicker type="truck" value={draft.truck} onPick={(a) => onChange({ truck: a })} />
+            <div style={{ marginTop: 12 }}>
+              <div style={{ font: "600 12px/1 var(--font-sans)", color: "var(--text-2)", letterSpacing: ".02em" }}>
+                {t("equipment.odometer")} <span style={{ color: "var(--st-crit)" }}>{t("app.required")}</span>
+              </div>
+              <MiField value={draft.odometer} onChange={(v) => onChange({ odometer: v })} placeholder="000000" testId="odometer" label={t("equipment.odometer")} />
+            </div>
+          </div>
+        ) : null}
+
+        {needsTrailer ? (
+          <div className="card-sm" style={{ marginTop: 14, padding: 16 }}>
+            <div className="label">{t("equipment.trailer")}</div>
+            <AssetPicker type="trailer" value={draft.trailer} onPick={(a) => onChange({ trailer: a })} />
+            <div style={{ marginTop: 12 }}>
+              <div style={{ font: "600 12px/1 var(--font-sans)", color: "var(--text-2)" }}>
+                {t("equipment.hubometer")} <span style={{ color: "var(--muted)", fontWeight: 500 }}>{t("app.optional")}</span>
+              </div>
+              <MiField value={draft.hubometer} onChange={(v) => onChange({ hubometer: v })} placeholder="000000" testId="hubometer" label={t("equipment.hubometer")} />
+            </div>
+          </div>
+        ) : null}
       </div>
-    </div>
+      <div style={{ flex: "none", padding: "14px 20px calc(26px + var(--safe-bottom))", display: "flex", gap: 10 }} className="mx-auto w-full max-w-lg">
+        <button type="button" className="btn-secondary" style={{ width: 70 }} onClick={onBack}>
+          {t("app.back")}
+        </button>
+        <button type="button" className="btn-primary" style={{ flex: 1 }} disabled={!ready} onClick={onStart} data-testid="start-inspection">
+          {t("equipment.start")}
+        </button>
+      </div>
+    </>
   );
 }

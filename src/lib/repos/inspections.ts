@@ -115,9 +115,9 @@ export async function createInspection(scope: Scope & { actor: "driver"; tenantI
       const ev = evaluation.tires[t.number];
       const assetId = pos.vehicle === "truck" ? (truck?.id ?? null) : (trailer?.id ?? null);
       const [row] = await tx<{ id: string }[]>`
-        insert into tire_entries (tenant_id, inspection_id, asset_id, tire_number, position_code, axle_key, psi, tread_32nds, damage, absent,
+        insert into tire_entries (tenant_id, inspection_id, asset_id, tire_number, position_code, axle_key, psi, tread_32nds, damage, damage_type, absent,
                                   tire_make, tire_model, tire_size, psi_status, tread_status, overall_status, notes, ai_suggestion)
-        values (${scope.tenantId}, ${ins.id}, ${assetId}, ${t.number}, ${pos.abbreviation}, ${pos.axleKey}, ${t.psi}, ${t.tread32}, ${t.damage}, ${!!t.absent && pos.positionClass === "spare"},
+        values (${scope.tenantId}, ${ins.id}, ${assetId}, ${t.number}, ${pos.abbreviation}, ${pos.axleKey}, ${t.psi}, ${t.tread32}, ${t.damage}, ${t.damageType ?? null}, ${!!t.absent && pos.positionClass === "spare"},
                 ${t.tireMake ?? null}, ${t.tireModel ?? null}, ${t.tireSize ?? null}, ${ev.psiStatus}, ${ev.treadStatus}, ${ev.overall},
                 ${t.notes ?? null}, ${t.aiSuggestion ? tx.json(t.aiSuggestion as postgres.JSONValue) : null})
         returning id`;
@@ -197,6 +197,7 @@ export interface ReportTire {
   psi: number | null;
   tread_32nds: number | null;
   damage: "none" | "repairable" | "non_repairable";
+  damage_type: string | null;
   absent: boolean;
   tire_make: string | null;
   tire_model: string | null;
@@ -251,7 +252,7 @@ export async function loadReport(scope: Scope & { tenantId: string }, inspection
     if (!r) return null;
 
     const entries = await tx<Omit<ReportTire, "photos">[]>`
-      select id, tire_number, position_code, axle_key, psi::float8 as psi, tread_32nds, damage, absent, tire_make, tire_model, tire_size,
+      select id, tire_number, position_code, axle_key, psi::float8 as psi, tread_32nds, damage, damage_type, absent, tire_make, tire_model, tire_size,
              psi_status, tread_status, overall_status, notes, ai_suggestion
       from tire_entries where inspection_id = ${inspectionId} order by tire_number`;
     const photos = await tx<{ id: string; tire_entry_id: string | null; storage_path: string; taken_at: string | null }[]>`

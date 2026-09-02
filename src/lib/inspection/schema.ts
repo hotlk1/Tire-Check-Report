@@ -23,6 +23,8 @@ export const tireSubmissionSchema = z.object({
   psi: z.number().min(0).max(200).nullable(),
   tread32: z.number().int().min(0).max(40).nullable(),
   damage: damageSchema,
+  /** Design damage-type chip (air_loss, sidewall_cut, …). */
+  damageType: z.string().max(40).nullable().optional(),
   tireMake: z.string().max(80).nullable().optional(),
   tireModel: z.string().max(80).nullable().optional(),
   tireSize: z.string().max(40).nullable().optional(),

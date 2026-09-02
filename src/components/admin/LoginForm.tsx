@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useT } from "@/i18n/client";
 import { loginAction, type FormState } from "@/app/admin/actions";
-import { Field, btnPrimary, inputCls, selectCls } from "./ui";
+import { Field, inputCls, selectCls } from "./ui";
 
 export function LoginForm({ dev, devUsers }: { dev: boolean; devUsers: { email: string; name: string | null; superAdmin: boolean }[] }) {
   const t = useT();
@@ -11,7 +11,7 @@ export function LoginForm({ dev, devUsers }: { dev: boolean; devUsers: { email: 
   return (
     <form action={action} className="space-y-3">
       {dev ? (
-        <div className="rounded-[var(--radius)] border border-status-yellow/40 bg-status-yellow-soft px-3 py-2 text-[12px] text-[#92400e]">
+        <div className="notice" data-status="yellow" style={{ display: "block", font: "500 12px/1.4 var(--font-sans)" }}>
           <div className="font-bold">{t("admin.login.devTitle")}</div>
           {t("admin.login.devHint")}
         </div>
@@ -35,11 +35,11 @@ export function LoginForm({ dev, devUsers }: { dev: boolean; devUsers: { email: 
         </Field>
       ) : null}
       {state.error ? (
-        <div className="rounded-[var(--radius)] bg-status-red-soft px-3 py-2 text-[13px] text-status-red" role="alert">
+        <div className="notice" data-status="red" style={{ display: "block", font: "600 12.5px/1.4 var(--font-sans)" }} role="alert">
           {state.error === "no_access" ? t("admin.login.noAccess") : t("admin.login.failed")}
         </div>
       ) : null}
-      <button type="submit" className={btnPrimary + " w-full"} disabled={pending} data-testid="login-submit">
+      <button type="submit" className="a-btn primary w-full" disabled={pending} data-testid="login-submit">
         {t("admin.login.submit")}
       </button>
     </form>

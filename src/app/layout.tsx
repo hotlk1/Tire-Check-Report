@@ -1,20 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/inter";
+import "@fontsource/barlow/400.css";
+import "@fontsource/barlow/500.css";
+import "@fontsource/barlow/600.css";
+import "@fontsource/barlow/700.css";
+import "@fontsource/barlow-condensed/700.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/ibm-plex-mono/600.css";
+import "@fontsource/ibm-plex-mono/700.css";
 import "./globals.css";
 import { I18nProvider } from "@/i18n/client";
 import { getRequestLocale } from "@/i18n/server";
 import { ServiceWorker } from "@/components/pwa/ServiceWorker";
 
 export const metadata: Metadata = {
-  title: { default: "Tire Check", template: "%s · Tire Check" },
+  title: { default: "TireReport", template: "%s · TireReport" },
   description: "Fleet tire inspections",
-  applicationName: "Tire Check",
+  applicationName: "TireReport",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Tire Check" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "TireReport" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1f3a",
+  themeColor: "#101B3D",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

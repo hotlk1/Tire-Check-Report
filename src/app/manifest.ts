@@ -2,13 +2,13 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Tire Check",
-    short_name: "Tire Check",
+    name: "TireReport",
+    short_name: "TireReport",
     description: "Fleet tire inspections",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f5f7",
-    theme_color: "#0b1f3a",
+    background_color: "#F6F7FB",
+    theme_color: "#101B3D",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

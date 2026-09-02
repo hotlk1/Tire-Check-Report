@@ -3,7 +3,7 @@
 import { useT } from "@/i18n/client";
 import type { MessageKey } from "@/i18n";
 import { getPosition } from "@/lib/tires/layout";
-import type { AxleComparison, AxleDefinition, DualPairComparison, InspectionEvaluation, TireReading } from "@/lib/tires/types";
+import type { AxleDefinition, InspectionEvaluation, TireReading } from "@/lib/tires/types";
 import { TireNode } from "./TireNode";
 
 interface Props {
@@ -12,47 +12,34 @@ interface Props {
   evaluation: InspectionEvaluation;
   selected?: number | null;
   onSelect?: (n: number) => void;
-  showValues?: boolean;
+  showPos?: boolean;
   size?: "sm" | "md" | "lg";
 }
 
-function fmtDiff(v: number | null) {
-  if (v === null) return "–";
+function fmt(v: number | null) {
+  if (v === null) return "—";
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
-function PairChip({ pair }: { pair: DualPairComparison }) {
-  const t = useT();
-  const ready = pair.psiDiff !== null || pair.treadDiff !== null;
-  const status = pair.psiStatus;
-  const sym = pair.treadMatch === null ? "·" : pair.treadMatch ? "=" : "≠";
-  const title = ready
-    ? `${t("tires.compare.pair")}: ${t("tires.compare.psiDiff", { value: fmtDiff(pair.psiDiff) })} · ${pair.treadMatch === false ? t("tires.compare.treadMismatch") : t("tires.compare.treadMatch")}`
-    : t("tires.compare.pair");
-  return (
-    <div className="compare-chip" data-status={ready ? status : "none"} title={title} aria-label={title}>
-      <span>{pair.psiDiff === null ? "Δ–" : `Δ${fmtDiff(pair.psiDiff)}`}</span>
-      <span className="sym" style={{ color: pair.treadMatch === false ? "var(--status-red)" : undefined }}>
-        {sym}
-      </span>
-    </div>
-  );
+export function photoStateOf(r: TireReading | undefined, photoMissing: boolean): "none" | "photo" | "need" {
+  if (photoMissing) return "need";
+  if (r && r.photoCount > 0) return "photo";
+  return "none";
 }
 
-function CenterChip({ axle, cmp }: { axle: AxleDefinition; cmp: AxleComparison }) {
+/**
+ * One axle of the diagram: label row with the AVG PSI chip and the Δ L/R
+ * chip, then left cells · beam · right cells. Duals carry a = / ≠ tread
+ * match glyph between the outer and inner tire (design §1a).
+ */
+export function AxleRow({ axle, readings, evaluation, selected, onSelect, showPos = true, size = "md" }: Props) {
   const t = useT();
-  const ready = cmp.sideToSidePsiDiff !== null;
-  const title = `${t(axle.labelKey as MessageKey)} · ${t("tires.compare.sideToSide")}: ${ready ? t("tires.compare.psiDiff", { value: fmtDiff(cmp.sideToSidePsiDiff) }) : "–"}`;
-  return (
-    <div className="compare-chip min-w-[52px]" data-status={ready ? cmp.sideToSideStatus : "none"} title={title} aria-label={title}>
-      <span className="text-[9px] font-bold tracking-wide opacity-80">L↔R</span>
-      <span>{ready ? `Δ${fmtDiff(cmp.sideToSidePsiDiff)}` : "Δ–"}</span>
-    </div>
-  );
-}
-
-export function AxleRow({ axle, readings, evaluation, selected, onSelect, showValues = true, size = "md" }: Props) {
   const cmp = evaluation.axles[axle.key];
+  const psis = axle.tires.map((n) => readings[n]?.psi).filter((v): v is number => v !== null && v !== undefined);
+  const avg = psis.length === axle.tires.length ? Math.round(psis.reduce((a, b) => a + b, 0) / psis.length) : null;
+  const diff = cmp?.sideToSidePsiDiff ?? null;
+  const diffStatus = cmp?.sideToSideStatus ?? "none";
+
   const node = (n: number) => {
     const pos = getPosition(n);
     const ev = evaluation.tires[n];
@@ -63,45 +50,66 @@ export function AxleRow({ axle, readings, evaluation, selected, onSelect, showVa
         number={n}
         abbreviation={pos.abbreviation}
         status={ev?.overall ?? "none"}
+        psiStatus={ev?.psiStatus ?? "none"}
+        treadStatus={ev?.treadStatus ?? "none"}
         psi={r?.psi ?? null}
         tread32={r?.tread32 ?? null}
         requiresPsi={pos.requiresPsi}
         selected={selected === n}
-        photoMissing={ev?.photoMissing}
-        showValues={showValues}
+        photoState={photoStateOf(r, !!ev?.photoMissing)}
+        hasDamage={!!r && r.damage !== "none"}
+        showPos={showPos}
         onSelect={onSelect}
         size={size}
       />
     );
   };
 
-  if (!axle.dual) {
-    const [l, r] = axle.tires;
+  const glyph = (side: "left" | "right") => {
+    const pair = cmp?.pairs.find((p) => p.side === side);
+    const m = pair?.treadMatch ?? null;
+    const sym = m === null ? "?" : m ? "=" : "≠";
+    const ink = m === null ? "#C6CCD8" : m ? "var(--st-ok)" : "var(--st-crit)";
     return (
-      <div className="flex items-center justify-center gap-1.5" data-axle={axle.key}>
-        {node(l)}
-        <div className="axle-line" />
-        {cmp ? <CenterChip axle={axle} cmp={cmp} /> : null}
-        <div className="axle-line" />
-        {node(r)}
+      <div className="match-glyph" title={m === null ? "" : t(m ? "tires.compare.treadMatch" : "tires.compare.treadMismatch")}>
+        <span style={{ color: ink }}>{sym}</span>
       </div>
     );
-  }
+  };
 
-  const [lo, li, ri, ro] = axle.tires;
-  const left = cmp?.pairs.find((p) => p.side === "left");
-  const right = cmp?.pairs.find((p) => p.side === "right");
+  const left = axle.dual ? [axle.tires[0], axle.tires[1]] : [axle.tires[0]];
+  const right = axle.dual ? [axle.tires[2], axle.tires[3]] : [axle.tires[1]];
+
   return (
-    <div className="flex items-center justify-center gap-1" data-axle={axle.key}>
-      {node(lo)}
-      {left ? <PairChip pair={left} /> : null}
-      {node(li)}
-      <div className="axle-line" />
-      {cmp ? <CenterChip axle={axle} cmp={cmp} /> : null}
-      <div className="axle-line" />
-      {node(ri)}
-      {right ? <PairChip pair={right} /> : null}
-      {node(ro)}
+    <div style={{ padding: "4px 2px 8px" }} data-axle={axle.key}>
+      <div className="axle-label">
+        <span className="label-xs">{t(axle.labelKey as MessageKey)}</span>
+        <span className="chip-mono" style={{ color: "var(--indigo)", background: "var(--indigo-soft)" }}>
+          {avg === null ? t("design.avgNone") : t("design.avg", { v: avg })}
+        </span>
+        {diff !== null ? (
+          <span className="chip-mono" data-status={diffStatus} style={{ color: diffStatus === "green" ? "var(--text-3)" : "var(--s)", background: diffStatus === "green" ? "var(--hair-2)" : "var(--s-soft)" }}>
+            {t("design.diff", { v: fmt(diff) })}
+          </span>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+          {node(left[0])}
+          {axle.dual ? glyph("left") : null}
+          {axle.dual ? node(left[1]) : null}
+        </div>
+        <div className="beam">
+          <span />
+          <span className="hub" />
+          <span />
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+          {node(right[0])}
+          {axle.dual ? glyph("right") : null}
+          {axle.dual ? node(right[1]) : null}
+        </div>
+      </div>
     </div>
   );
 }

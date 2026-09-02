@@ -1,28 +1,27 @@
 "use client";
 
 import { useI18n } from "@/i18n/client";
-import { Button, Card } from "@/components/ui";
 import type { InspectionDraft } from "@/lib/inspection/draft";
 
 export function ResumePrompt({ draft, onResume, onStartNew }: { draft: InspectionDraft; onResume: () => void; onStartNew: () => void }) {
   const { t, locale } = useI18n();
   const when = new Date(draft.updatedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
-  const units = [draft.truck?.unitNumber, draft.trailer?.unitNumber].filter(Boolean).join(" + ");
+  const units = [draft.truck?.unitNumber, draft.trailer?.unitNumber].filter(Boolean).join(" · ");
   return (
-    <div className="mx-auto w-full max-w-md px-4 pt-8">
-      <Card className="p-5">
-        <div className="text-[18px] font-bold">{t("driver.resume.title")}</div>
-        <p className="mt-1 text-[14px] text-text-2">{t("driver.resume.body", { when })}</p>
-        {units ? <div className="mt-2 inline-block rounded-md bg-surface-3 px-2 py-1 text-[13px] font-semibold">{units}</div> : null}
-        <div className="mt-5 grid gap-2">
-          <Button size="lg" onClick={onResume} data-testid="resume">
+    <div className="mx-auto w-full max-w-md flex-1 overflow-auto" style={{ padding: "32px 20px", minHeight: 0 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <div className="h3" style={{ fontSize: 18 }}>{t("driver.resume.title")}</div>
+        <p className="sub" style={{ marginTop: 6 }}>{t("driver.resume.body", { when })}</p>
+        {units ? <div className="chip-mono" style={{ marginTop: 10, background: "var(--hair-2)", color: "var(--ink)", fontSize: 13 }}>{units}</div> : null}
+        <div style={{ marginTop: 20, display: "grid", gap: 8 }}>
+          <button type="button" className="btn-primary" onClick={onResume} data-testid="resume">
             {t("driver.resume.continue")}
-          </Button>
-          <Button size="lg" variant="secondary" onClick={onStartNew} data-testid="start-new">
+          </button>
+          <button type="button" className="btn-secondary" onClick={onStartNew} data-testid="start-new">
             {t("driver.resume.startNew")}
-          </Button>
+          </button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

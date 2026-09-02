@@ -27,6 +27,7 @@ export interface DraftTire {
   psi: number | null;
   tread32: number | null;
   damage: DamageStatus;
+  damageType?: string | null;
   photoIds: string[];
   /** Spares only: driver declared "No spare". */
   absent?: boolean;
@@ -152,6 +153,7 @@ export function toSubmission(draft: InspectionDraft, client?: InspectionSubmissi
       psi: t.psi,
       tread32: t.tread32,
       damage: t.damage,
+      damageType: t.damage === "none" ? null : (t.damageType ?? null),
       tireMake: t.tireMake?.trim() || null,
       tireModel: t.tireModel?.trim() || null,
       tireSize: t.tireSize?.trim() || null,

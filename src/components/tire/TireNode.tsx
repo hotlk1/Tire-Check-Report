@@ -5,49 +5,75 @@ import type { Status } from "@/lib/tires/types";
 export interface TireNodeProps {
   number: number;
   abbreviation: string;
+  /** Worst status → ring + number badge. */
   status: Status;
+  psiStatus?: Status;
+  treadStatus?: Status;
   psi?: number | null;
   tread32?: number | null;
   requiresPsi?: boolean;
+  isSpare?: boolean;
+  absent?: boolean;
   selected?: boolean;
-  photoMissing?: boolean;
-  showValues?: boolean;
+  /** Middle band: none (empty square), photo (indigo), need (red !). */
+  photoState?: "none" | "photo" | "need";
+  hasDamage?: boolean;
+  showPos?: boolean;
   onSelect?: (number: number) => void;
   size?: "sm" | "md" | "lg";
-  /** Spare declared "No spare": rendered as an empty dashed slot. */
-  absent?: boolean;
 }
 
 /**
- * A single tire on the diagram: dark tread block with a colored status ring
- * (gray = not checked, green / yellow / red per thresholds). Loud states are
- * expressed through the ring, not the whole component.
+ * Tire card from the design system (§1c anatomy): status ring, number badge
+ * top-left, PSI band, photo/damage band, tread band; spares swap the PSI
+ * band for a SPARE cap. Em dash means no reading yet — never 0.
  */
-export function TireNode({ number, abbreviation, status, psi, tread32, requiresPsi = true, selected, photoMissing, showValues = true, onSelect, size = "md", absent }: TireNodeProps) {
-  const dims = size === "sm" ? { w: 36, h: 50 } : size === "lg" ? { w: 56, h: 76 } : { w: 46, h: 64 };
+export function TireNode({ number, abbreviation, status, psiStatus = "none", treadStatus = "none", psi, tread32, requiresPsi = true, isSpare, absent, selected, photoState = "none", hasDamage, showPos = true, onSelect, size = "md" }: TireNodeProps) {
+  const w = size === "sm" ? 52 : size === "lg" ? 66 : 60;
   const hasPsi = psi !== null && psi !== undefined;
   const hasTread = tread32 !== null && tread32 !== undefined;
-  const value = showValues && (hasPsi || hasTread) ? `${requiresPsi ? (hasPsi ? Math.round(psi!) : "–") : ""}${requiresPsi ? "·" : ""}${hasTread ? tread32 : "–"}` : null;
   const Tag = onSelect ? "button" : "div";
   return (
-    <div className="flex flex-col items-center">
+    <div style={{ width: w }}>
       <Tag
         type={onSelect ? "button" : undefined}
         className="tire"
-        style={{ ["--tire-w" as string]: `${dims.w}px`, ["--tire-h" as string]: `${dims.h}px` }}
-        data-status={status}
-        data-absent={absent ? "true" : "false"}
+        style={{ ["--tire-w" as string]: `${w}px` }}
+        data-status={absent ? "none" : status}
         data-selected={selected ? "true" : "false"}
-        data-photo-missing={photoMissing ? "true" : "false"}
+        data-absent={absent ? "true" : "false"}
         data-tire={number}
         aria-label={`Tire ${number} ${abbreviation}`}
         aria-pressed={onSelect ? !!selected : undefined}
         onClick={onSelect ? () => onSelect(number) : undefined}
       >
-        <span className="n">{absent ? "—" : number}</span>
-        {absent ? <span className="v">{number}</span> : value ? <span className="v">{value}</span> : null}
+        <span className="badge">{number}</span>
+        {isSpare || !requiresPsi ? (
+          <span className="band" style={{ background: "var(--st-none-tint)" }}>
+            <span className="cap">{absent ? "—" : "SPARE"}</span>
+          </span>
+        ) : (
+          <span className="band" data-status={psiStatus} style={{ background: "var(--s-soft)" }}>
+            <span className="val" data-empty={!hasPsi} style={{ color: hasPsi ? "var(--s)" : undefined }}>
+              {hasPsi ? Math.round(psi!) : "—"}
+            </span>
+            <span className="unit">PSI</span>
+          </span>
+        )}
+        <span className="mid" data-need={photoState === "need"}>
+          <span className="cam" data-state={photoState}>
+            {photoState === "need" ? "!" : "▣"}
+          </span>
+          {hasDamage ? <span className="dmg">DMG</span> : null}
+        </span>
+        <span className="band band-tread" data-status={absent ? "none" : treadStatus} style={{ background: "var(--s-soft)" }}>
+          <span className="val" data-empty={!hasTread} style={{ color: hasTread ? "var(--s)" : undefined }}>
+            {hasTread && !absent ? tread32 : "—"}
+          </span>
+          <span className="unit">/32</span>
+        </span>
       </Tag>
-      <div className="tire-label">{abbreviation}</div>
+      {showPos ? <div className="tire-pos">{abbreviation}</div> : null}
     </div>
   );
 }

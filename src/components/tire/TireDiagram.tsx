@@ -3,7 +3,7 @@
 import { useT } from "@/i18n/client";
 import { axlesForMode, getPosition, SPARES, vehiclesForMode } from "@/lib/tires/layout";
 import type { InspectionEvaluation, InspectionMode, TireReading, VehicleKind } from "@/lib/tires/types";
-import { AxleRow } from "./AxleRow";
+import { AxleRow, photoStateOf } from "./AxleRow";
 import { TireNode } from "./TireNode";
 
 export interface TireDiagramProps {
@@ -12,94 +12,85 @@ export interface TireDiagramProps {
   evaluation: InspectionEvaluation;
   selected?: number | null;
   onSelect?: (n: number) => void;
+  /** Unit labels shown in the group header, e.g. "Truck 4182 · Cascadia". */
   labels?: Partial<Record<VehicleKind, string>>;
-  showValues?: boolean;
+  showPos?: boolean;
   size?: "sm" | "md" | "lg";
-  /** Hide the spares row (e.g. compact report thumbnails). */
   hideSpares?: boolean;
+  hideLegend?: boolean;
 }
 
 /**
- * Top-down rig diagram: steer axle at the front, drive axles, then the
- * trailer axles, spares at the bottom. Every tire is tappable in any order.
+ * Printed-axle-report layout rebuilt as touch cards (design §1a): TRACTOR,
+ * TRAILER and SPARES groups, each a white card with axle rows.
  */
-export function TireDiagram({ mode, readings, evaluation, selected, onSelect, labels, showValues = true, size = "md", hideSpares }: TireDiagramProps) {
+export function TireDiagram({ mode, readings, evaluation, selected, onSelect, labels, showPos = true, size = "md", hideSpares, hideLegend }: TireDiagramProps) {
   const t = useT();
   const vehicles = vehiclesForMode(mode);
   const axles = axlesForMode(mode);
 
   return (
-    <div className="flex flex-col items-stretch gap-3" data-diagram>
-      {vehicles.map((vehicle) => {
-        const vAxles = axles.filter((a) => a.vehicle === vehicle);
-        const isTruck = vehicle === "truck";
-        return (
-          <section
-            key={vehicle}
-            className="relative rounded-[var(--radius-lg)] border border-border bg-surface px-2 pb-4 pt-2 shadow-[var(--shadow-sm)]"
-            data-vehicle={vehicle}
-          >
-            <header className="mb-2 flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-3">{t(isTruck ? "equipment.truck" : "equipment.trailer")}</span>
-              {labels?.[vehicle] ? <span className="rounded-md bg-surface-3 px-2 py-0.5 text-[12px] font-semibold text-text-2">{labels[vehicle]}</span> : null}
-            </header>
-
-            {/* chassis */}
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-x-0 top-0 bottom-0 flex justify-center">
-                <div className="frame-rail my-6" />
-              </div>
-              {isTruck ? (
-                <div className="relative mx-auto mb-3 flex h-9 w-[46%] items-end justify-center rounded-t-[22px] rounded-b-md border-2 border-dashed border-border-strong bg-surface-2 text-[10px] font-bold tracking-[0.12em] text-text-3">
-                  <span className="pb-1">{t("inspection.front")}</span>
-                </div>
-              ) : (
-                <div className="relative mx-auto mb-3 h-5 w-[70%] rounded-md border-2 border-dashed border-border-strong bg-surface-2" />
-              )}
-              <div className="relative flex flex-col gap-4">
-                {vAxles.map((axle) => (
-                  <AxleRow key={axle.key} axle={axle} readings={readings} evaluation={evaluation} selected={selected} onSelect={onSelect} showValues={showValues} size={size} />
-                ))}
-              </div>
-              {!isTruck ? <div className="relative mx-auto mt-3 h-3 w-[70%] rounded-md border-2 border-dashed border-border-strong bg-surface-2" /> : null}
-            </div>
-          </section>
-        );
-      })}
+    <div data-diagram>
+      {vehicles.map((vehicle) => (
+        <section key={vehicle} className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-vehicle={vehicle}>
+          <header className="group-head">
+            <span className="dot" />
+            <span className="name">{t(vehicle === "truck" ? "design.tractor" : "equipment.trailer").toUpperCase()}</span>
+            <span className="rule" />
+            <span className="unit">{labels?.[vehicle] ?? ""}</span>
+          </header>
+          {axles
+            .filter((a) => a.vehicle === vehicle)
+            .map((axle) => (
+              <AxleRow key={axle.key} axle={axle} readings={readings} evaluation={evaluation} selected={selected} onSelect={onSelect} showPos={showPos} size={size} />
+            ))}
+        </section>
+      ))}
 
       {!hideSpares ? (
-        <section className="rounded-[var(--radius-lg)] border border-dashed border-border-strong bg-surface-2 px-3 py-2" data-spares>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-3">{t("inspection.spares")}</span>
-            <span className="text-[11px] text-text-3">{t("inspection.spareOptional")} · {t("tire.spareRequired")}</span>
-          </div>
-          <div className="mt-2 flex items-center justify-center gap-8">
-            {vehicles.map((v) => {
-              const n = SPARES[v];
-              const pos = getPosition(n);
-              const r = readings[n];
-              const ev = evaluation.tires[n];
-              return (
-                <TireNode
-                  key={n}
-                  number={n}
-                  abbreviation={`${pos.abbreviation} · ${t(v === "truck" ? "equipment.truck" : "equipment.trailer")}`}
-                  status={ev?.overall ?? "none"}
-                  psi={null}
-                  tread32={r?.tread32 ?? null}
-                  absent={!!r?.absent}
-                  requiresPsi={false}
-                  selected={selected === n}
-                  photoMissing={ev?.photoMissing}
-                  showValues={showValues}
-                  onSelect={onSelect}
-                  size={size === "lg" ? "md" : "sm"}
-                />
-              );
-            })}
+        <section className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-spares>
+          <header className="group-head">
+            <span className="dot" />
+            <span className="name">{t("inspection.spares").toUpperCase()}</span>
+            <span className="rule" />
+            <span className="unit">{t("design.treadOnly")}</span>
+          </header>
+          <div style={{ padding: "4px 2px 8px" }}>
+            <div className="axle-label">
+              <span className="label-xs">{t("design.mountedSpares")}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+              {vehicles.map((v) => {
+                const n = SPARES[v];
+                const pos = getPosition(n);
+                const r = readings[n];
+                const ev = evaluation.tires[n];
+                return (
+                  <TireNode
+                    key={n}
+                    number={n}
+                    abbreviation={v === "truck" ? "SP1" : "SP2"}
+                    status={ev?.overall ?? "none"}
+                    treadStatus={ev?.treadStatus ?? "none"}
+                    tread32={r?.tread32 ?? null}
+                    requiresPsi={pos.requiresPsi}
+                    isSpare
+                    absent={!!r?.absent}
+                    selected={selected === n}
+                    photoState={photoStateOf(r, !!ev?.photoMissing)}
+                    hasDamage={!!r && r.damage !== "none"}
+                    showPos={showPos}
+                    onSelect={onSelect}
+                    size={size}
+                  />
+                );
+              })}
+            </div>
           </div>
         </section>
       ) : null}
+
+      {!hideLegend ? <DiagramLegend /> : null}
     </div>
   );
 }
@@ -107,13 +98,12 @@ export function TireDiagram({ mode, readings, evaluation, selected, onSelect, la
 export function DiagramLegend() {
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-text-2">
-      {(["none", "green", "yellow", "red"] as const).map((s) => (
-        <span key={s} className="inline-flex items-center gap-1.5" data-status={s}>
-          <span className="status-dot" />
-          {t(`inspection.legend.${s}`)}
-        </span>
-      ))}
+    <div className="legend">
+      <span className="flex items-center gap-[5px]" data-status="none"><span className="sw" />{t("design.legend.notDone")}</span>
+      <span className="flex items-center gap-[5px]" data-status="green"><span className="sw" />{t("design.legend.ok")}</span>
+      <span className="flex items-center gap-[5px]" data-status="yellow"><span className="sw" />{t("design.legend.watch")}</span>
+      <span className="flex items-center gap-[5px]" data-status="red"><span className="sw" />{t("design.legend.critical")}</span>
+      <span className="flex items-center gap-[5px]"><span style={{ font: "700 12px/1 var(--font-sans)", color: "var(--st-ok)" }}>=</span>{t("design.legend.matched")}</span>
     </div>
   );
 }

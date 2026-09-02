@@ -1,18 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n/client";
-import { Button, Spinner, TopBar } from "@/components/ui";
+import type { MessageKey } from "@/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
-import { DiagramLegend, TireDiagram } from "@/components/tire/TireDiagram";
+import { AppHeader } from "@/components/driver/AppHeader";
+import { TireDiagram } from "@/components/tire/TireDiagram";
 import { TireSheet } from "@/components/tire/TireSheet";
 import { useOnline } from "@/lib/client/hooks";
 import { draftHasContent, emptyTire, isDraftExpired, newDraft, tireOf, toReadings, type DraftTire, type InspectionDraft } from "@/lib/inspection/draft";
+import { buildIssues, verdictOf } from "@/lib/inspection/issues";
 import { deleteDraft, deletePhoto, getDraft, listDraftsForDriver, listPhotosForDraft, pruneOldDrafts, saveDraft, savePhoto, type StoredPhoto } from "@/lib/offline/db";
 import { prepareImage } from "@/lib/offline/image";
 import { startOutboxWatcher, syncDraft } from "@/lib/offline/sync";
-import { blockingIssues, evaluateInspection, tiresForMode, type BlockingIssue } from "@/lib/tires";
+import { evaluateInspection, getPosition, tiresForMode } from "@/lib/tires";
+import { AXLES } from "@/lib/tires/layout";
 import { EquipmentStep } from "./EquipmentStep";
 import { ResumePrompt } from "./ResumePrompt";
 
@@ -23,12 +27,12 @@ export interface DriverContext {
   driverName: string;
 }
 
-type Phase = "loading" | "resume" | "equipment" | "inspect";
+type Phase = "loading" | "resume" | "equipment" | "inspect" | "review";
 
 /**
- * Orchestrates the driver flow: resume/new → equipment → diagram → submit.
- * Every change is written to IndexedDB (autosave), submission goes through
- * the offline outbox so nothing is lost when connectivity drops.
+ * Driver flow (design §1a): resume/new → equipment → tire diagram → review &
+ * submit → submitted. Every change autosaves to IndexedDB; submission goes
+ * through the offline outbox.
  */
 export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const { t, locale } = useI18n();
@@ -39,15 +43,13 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const [candidate, setCandidate] = useState<InspectionDraft | null>(null);
   const [photos, setPhotos] = useState<Record<string, StoredPhoto>>({});
   const [selected, setSelected] = useState<number | null>(null);
-  const [showIssues, setShowIssues] = useState(false);
-  const [serverIssues, setServerIssues] = useState<BlockingIssue[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState<{ inspectionId: string | null; flagged: number } | null>(null);
   const [analyzing, setAnalyzing] = useState<number | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const saveTimer = useRef<number | null>(null);
 
-  // ---- load / resume -------------------------------------------------------
+  // ---- load / resume --------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -98,10 +100,11 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     await saveDraft(d);
     setDraft(d);
     setPhotos({});
+    setSubmitted(null);
     setPhase("equipment");
   };
 
-  // ---- autosave --------------------------------------------------------------
+  // ---- autosave ---------------------------------------------------------------
   const update = useCallback((patch: Partial<InspectionDraft> | ((d: InspectionDraft) => Partial<InspectionDraft>)) => {
     setDraft((prev) => {
       if (!prev) return prev;
@@ -109,13 +112,11 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
       const next = { ...prev, ...p, updatedAt: new Date().toISOString() };
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => {
-        saveDraft(next)
-          .then(() => setSavedAt(new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })))
-          .catch((e) => console.error("autosave failed", e));
+        saveDraft(next).catch((e) => console.error("autosave failed", e));
       }, 250);
       return next;
     });
-  }, [locale]);
+  }, []);
 
   const updateTire = useCallback(
     (n: number, patch: Partial<DraftTire>) => {
@@ -124,7 +125,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     [update],
   );
 
-  // ---- geolocation (never blocks) -------------------------------------------
+  // ---- geolocation (never blocks) ------------------------------------------
   const captureLocation = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
     update({ locationState: "capturing" });
@@ -144,7 +145,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     if (draft && draft.locationState === "idle") captureLocation();
   };
 
-  // ---- photos ------------------------------------------------------------------
+  // ---- photos -----------------------------------------------------------------
   const addPhotos = async (n: number, files: FileList) => {
     if (!draft) return;
     const ids: string[] = [];
@@ -166,8 +167,8 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   };
 
   const analyze = async (n: number, photoId: string) => {
-    if (!navigator.onLine) return;
-    const photo = photos[photoId] ?? (await listPhotosForDraft(draft!.id)).find((p) => p.id === photoId);
+    if (!navigator.onLine || !draft) return;
+    const photo = photos[photoId] ?? (await listPhotosForDraft(draft.id)).find((p) => p.id === photoId);
     if (!photo) return;
     setAnalyzing(n);
     try {
@@ -197,26 +198,26 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     updateTire(n, { photoIds: tireOf(draft, n).photoIds.filter((id) => id !== photoId) });
   };
 
-  // ---- evaluation --------------------------------------------------------------
+  // ---- evaluation ----------------------------------------------------------------
   const readings = useMemo(() => (draft ? toReadings(draft) : {}), [draft]);
   const mode = draft?.mode ?? null;
   const evaluation = useMemo(() => (mode ? evaluateInspection(mode, readings) : null), [mode, readings]);
-  const order = useMemo(() => (mode ? tiresForMode(mode) : []), [mode]);
-  const liveIssues = useMemo(
-    () => (draft && mode ? blockingIssues({ mode, truckSelected: !!draft.truck, trailerSelected: !!draft.trailer, odometer: draft.odometer, readings }) : []),
+  const issues = useMemo(
+    () => (draft && mode ? buildIssues({ mode, readings, truckSelected: !!draft.truck, trailerSelected: !!draft.trailer, odometer: draft.odometer }) : []),
     [draft, mode, readings],
   );
-  const issues = showIssues ? (serverIssues && serverIssues.length ? serverIssues : liveIssues) : [];
+  const blocking = issues.filter((i) => i.blocking);
+  const critical = issues.filter((i) => i.status === "red" && !i.blocking).length;
+  const total = evaluation?.summary.total ?? 0;
+  const done = evaluation?.summary.completed ?? 0;
+  const spareCount = mode ? tiresForMode(mode).filter((n) => getPosition(n).positionClass === "spare").length : 0;
+  const spareDone = mode ? tiresForMode(mode).filter((n) => getPosition(n).positionClass === "spare" && evaluation?.tires[n]?.complete).length : 0;
+  const progress = { done: done + spareDone, total: total + spareCount };
+  const left = progress.total - progress.done;
 
-  // ---- submit -------------------------------------------------------------------
+  // ---- submit ---------------------------------------------------------------------
   const submit = async () => {
-    if (!draft || !draft.mode) return;
-    setServerIssues(null);
-    if (liveIssues.length) {
-      setShowIssues(true);
-      return;
-    }
-    setShowIssues(false);
+    if (!draft || !draft.mode || blocking.length) return;
     setSubmitting(true);
     setSubmitError(null);
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -227,168 +228,141 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     const after = (await getDraft(queued.id)) ?? queued;
     setDraft(after);
     setSubmitting(false);
-    if (result.ok) {
-      router.push(`/report/${result.inspectionId}?new=1`);
-    } else if (!result.retryable) {
-      setSubmitError(result.error);
-      setServerIssues((result.issues as BlockingIssue[] | undefined) ?? null);
-      setShowIssues(true);
-    }
+    if (result.ok) setSubmitted({ inspectionId: result.inspectionId, flagged: issues.length });
+    else if (result.retryable) setSubmitted({ inspectionId: null, flagged: issues.length });
+    else setSubmitError(result.error);
   };
 
-  // While queued offline, keep watching for the outbox to finish.
   useEffect(() => {
-    if (!draft || draft.status !== "queued") return;
+    if (!draft || draft.status !== "queued" || !submitted || submitted.inspectionId) return;
     const id = window.setInterval(async () => {
       const latest = await getDraft(draft.id);
-      if (latest?.inspectionId && (latest.status === "submitted" || latest.status === "queued")) {
-        if (latest.status === "submitted") router.push(`/report/${latest.inspectionId}?new=1`);
-      }
+      if (latest?.inspectionId) setSubmitted((s) => (s ? { ...s, inspectionId: latest.inspectionId } : s));
     }, 3000);
     return () => window.clearInterval(id);
-  }, [draft, router]);
+  }, [draft, submitted]);
 
-  // ---- render -------------------------------------------------------------------
   const signOut = async () => {
     await fetch("/api/driver/session", { method: "DELETE" });
     router.push(`/t/${ctx.tenantSlug}`);
   };
 
-  const header = (
-    <TopBar
-      title={t("inspection.title")}
-      subtitle={`${ctx.driverName} · ${ctx.tenantName}`}
-      right={
-        <div className="flex items-center gap-2">
-          <LanguageSwitcher dark />
-          <button type="button" onClick={signOut} className="text-[12px] font-semibold text-white/80 hover:text-white">
-            {t("driver.signOut")}
-          </button>
-        </div>
-      }
-    />
+  const stepLabel = phase === "review" ? t("design.step.review") : phase === "inspect" ? t("design.step.tires") : t("design.step.equipment");
+  const header = <AppHeader tenantName={ctx.tenantName} step={stepLabel} progress={phase === "inspect" || phase === "review" ? progress : undefined} right={phase === "equipment" ? <LanguageSwitcher dark /> : undefined} />;
+
+  const shell = (children: React.ReactNode) => (
+    <div className="flex h-dvh flex-col" style={{ background: "var(--bg)", overflow: "hidden" }}>
+      {header}
+      {!online ? <div style={{ background: "var(--st-warn-tint)", color: "#8a6100", font: "600 12px/1 var(--font-sans)", textAlign: "center", padding: "7px 12px" }}>{t("app.offline")}</div> : null}
+      {children}
+    </div>
   );
 
   if (phase === "loading" || !draft) {
-    return (
-      <>
-        {header}
-        <div className="flex flex-1 items-center justify-center py-20 text-text-3">
-          <Spinner /> <span className="ml-2">{t("app.loading")}</span>
-        </div>
-      </>
-    );
+    return shell(<div className="flex flex-1 items-center justify-center py-20" style={{ color: "var(--muted)" }}>{t("app.loading")}</div>);
   }
+  if (phase === "resume" && candidate) return shell(<ResumePrompt draft={candidate} onResume={resume} onStartNew={startNew} />);
+  if (phase === "equipment") return shell(<EquipmentStep draft={draft} onChange={update} onStart={startInspection} onBack={signOut} />);
 
-  if (phase === "resume" && candidate) {
-    return (
-      <>
-        {header}
-        <ResumePrompt draft={candidate} onResume={resume} onStartNew={startNew} />
-      </>
-    );
-  }
+  const labels = {
+    truck: draft.truck ? `${t("equipment.truck")} ${draft.truck.unitNumber}${draft.truck.label ? ` · ${draft.truck.label}` : ""}` : undefined,
+    trailer: draft.trailer ? `${t("equipment.trailer")} ${draft.trailer.unitNumber}${draft.trailer.label ? ` · ${draft.trailer.label}` : ""}` : undefined,
+  };
+  const verdict = verdictOf(issues);
+  const verdictInk = verdict === "action" ? "var(--st-crit)" : verdict === "watch" ? "var(--st-warn)" : "var(--st-ok)";
+  const isReview = phase === "review";
 
-  if (phase === "equipment") {
-    return (
-      <>
-        {header}
-        {!online ? <OfflineBanner /> : null}
-        <EquipmentStep draft={draft} onChange={update} onStart={startInspection} />
-      </>
-    );
-  }
-
-  const done = evaluation?.summary.completed ?? 0;
-  const total = evaluation?.summary.total ?? 0;
-  const idx = selected ? order.indexOf(selected) : -1;
-
-  return (
+  return shell(
     <>
-      {header}
-      {!online ? <OfflineBanner /> : null}
-      <main className="mx-auto w-full max-w-5xl px-3 pb-32 pt-3 md:grid md:grid-cols-[1fr_320px] md:gap-6 md:px-6">
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2 px-1">
-            <div className="text-[13px] text-text-2">
-              <span className="font-semibold text-text">{t("inspection.progress", { done, total })}</span>
-              <span className="text-text-3"> · {t("inspection.tapTire")}</span>
-            </div>
-            <button type="button" className="text-[12px] font-semibold text-accent" onClick={() => setPhase("equipment")}>
-              {t("equipment.change")}
-            </button>
+      <main className="scr mx-auto w-full max-w-5xl flex-1 overflow-auto" style={{ padding: "14px 14px 24px", minHeight: 0 }}>
+        <div className="md:grid md:grid-cols-[minmax(0,1fr)_360px] md:gap-5">
+          <div>
+            {isReview ? (
+              <div className="card" style={{ padding: "14px 16px", marginBottom: 12, borderRadius: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="h3">{[labels.truck, labels.trailer].filter(Boolean).map((l) => l!.split(" · ")[0]).join(" · ")}</div>
+                    <div style={{ font: "500 11.5px/1.3 var(--font-sans)", color: "var(--muted)", marginTop: 3 }}>
+                      {ctx.driverName}
+                      {draft.odometer !== null ? ` · Odo ${draft.odometer.toLocaleString(locale)} mi` : ""} · {new Date().toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flex: "none" }}>
+                    <div style={{ font: "700 15px/1 var(--font-mono)", color: verdictInk }}>{t(`design.verdict.${verdict}`)}</div>
+                    <div className="label-xs" style={{ fontSize: 9.5, marginTop: 2 }}>{t("design.result")}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", padding: "0 4px 10px" }}>{t("inspection.tapTire")}</p>
+            )}
+            <TireDiagram mode={mode!} readings={readings} evaluation={evaluation!} selected={selected} onSelect={isReview ? undefined : setSelected} labels={labels} />
           </div>
-          <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-surface-3">
-            <div className="h-full rounded-full bg-status-green transition-all" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
-          </div>
-          <TireDiagram
-            mode={mode!}
-            readings={readings}
-            evaluation={evaluation!}
-            selected={selected}
-            onSelect={setSelected}
-            labels={{ truck: draft.truck?.unitNumber, trailer: draft.trailer?.unitNumber }}
-            size="md"
-          />
-          <div className="mt-3 px-1">
-            <DiagramLegend />
-          </div>
-        </div>
 
-        <aside className="mt-4 md:mt-0">
-          <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-3">
-            <div className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-3">{t("inspection.notes")}</div>
-            <textarea
-              className="mt-1 w-full min-h-[72px] rounded-[var(--radius)] border border-border-strong px-3 py-2 text-[15px]"
-              placeholder={t("inspection.notesPlaceholder")}
-              value={draft.notes}
-              onChange={(e) => update({ notes: e.target.value })}
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-text-3">
-              <span>
+          <aside>
+            {isReview ? (
+              <>
+                <div className="card" style={{ marginTop: 12, overflow: "hidden" }} data-testid="issues">
+                  <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ font: "700 13px/1 var(--font-sans)", color: "var(--ink)", letterSpacing: ".06em", textTransform: "uppercase" }}>{t("design.needsAttention")}</span>
+                    <span className="chip-mono" style={{ color: "var(--st-crit)", background: "var(--st-crit-tint)", fontSize: 11 }}>{issues.length}</span>
+                  </div>
+                  {issues.map((it, k) => {
+                    const pos = getPosition(it.tire);
+                    const axle = AXLES.find((a) => a.key === pos.axleKey);
+                    return (
+                      <button key={k} type="button" onClick={() => { setPhase("inspect"); setSelected(it.tire); }} style={{ display: "flex", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--hair-2)", alignItems: "flex-start", width: "100%", textAlign: "left" }} data-status={it.status}>
+                        <span style={{ flex: "none", width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", font: "700 12px/1 var(--font-mono)", background: "var(--s-soft)", color: "var(--s)" }}>{it.tire}</span>
+                        <span style={{ flex: 1, minWidth: 0, display: "block" }}>
+                          <span style={{ display: "block", font: "700 14px/1.2 var(--font-sans)", color: "var(--ink)" }}>
+                            {t("tire.title", { number: it.tire })} · {axle ? t(axle.labelKey as MessageKey) : ""} {pos.positionClass === "spare" ? "" : pos.abbreviation}
+                          </span>
+                          <span style={{ display: "block", font: "500 12px/1.4 var(--font-sans)", color: "var(--text-3)", marginTop: 3 }}>{t(`design.issue.${it.textKey}`, it.params)}</span>
+                        </span>
+                        <span className="chip" style={{ flex: "none" }}>{t(`design.tags.${it.tag}`)}</span>
+                      </button>
+                    );
+                  })}
+                  {issues.length === 0 ? <div style={{ padding: 16, borderTop: "1px solid var(--hair-2)", font: "500 13px/1.4 var(--font-sans)", color: "var(--st-ok)" }}>{t("design.allWithin")}</div> : null}
+                </div>
+                <div className="card" style={{ marginTop: 12, padding: "14px 16px" }}>
+                  <div className="label" style={{ color: "var(--ink)", letterSpacing: ".08em" }}>{t("inspection.notes")}</div>
+                  <textarea className="textarea" style={{ marginTop: 9 }} placeholder={t("inspection.notesPlaceholder")} value={draft.notes} onChange={(e) => update({ notes: e.target.value })} />
+                </div>
+                {submitError ? <div className="notice" data-status="red" style={{ marginTop: 12 }}><span className="bang">!</span><span style={{ font: "600 12.5px/1.4 var(--font-sans)" }}>{t("app.error")} ({submitError})</span></div> : null}
+              </>
+            ) : (
+              <div style={{ marginTop: 12, font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", padding: "0 4px" }}>
                 {draft.locationState === "capturing" ? t("inspection.locationCapturing") : draft.locationState === "captured" ? "📍 " + t("inspection.locationCaptured") : draft.locationState === "denied" ? t("inspection.locationDenied") : ""}
-              </span>
-              {savedAt ? <span>· {t("inspection.savedAt", { time: savedAt })}</span> : null}
-            </div>
-          </div>
-
-          {issues.length ? (
-            <div className="mt-3 rounded-[var(--radius-lg)] border border-status-yellow/40 bg-status-yellow-soft p-3" data-testid="issues">
-              <div className="text-[13px] font-bold text-[#92400e]">{t("inspection.issues.title")}</div>
-              <ul className="mt-1 space-y-1">
-                {issues.map((i, k) => (
-                  <li key={k}>
-                    <button
-                      type="button"
-                      className="text-left text-[13px] text-[#92400e] underline-offset-2 hover:underline"
-                      onClick={() => {
-                        if ("tire" in i) setSelected(i.tire);
-                        else setPhase("equipment");
-                      }}
-                    >
-                      {t(`inspection.issues.${i.kind}`, "tire" in i ? { tire: i.tire } : undefined)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {submitError ? <div className="mt-3 rounded-[var(--radius)] bg-status-red-soft px-3 py-2 text-[13px] text-status-red">{t("app.error")} ({submitError})</div> : null}
-          {draft.status === "queued" ? <div className="mt-3 rounded-[var(--radius)] bg-accent-soft px-3 py-2 text-[13px] text-accent">{t("inspection.queued")}</div> : null}
-        </aside>
+              </div>
+            )}
+          </aside>
+        </div>
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur" style={{ paddingBottom: "calc(12px + var(--safe-bottom))" }}>
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
-          <div className="hidden text-[12px] text-text-3 md:block">{t("inspection.progress", { done, total })}</div>
-          <Button className="flex-1 md:max-w-xs md:ml-auto" size="lg" onClick={submit} disabled={submitting || draft.status === "queued"} data-testid="submit">
-            {submitting ? <Spinner /> : null}
-            {submitting ? t("inspection.submitting") : draft.status === "queued" ? t("inspection.queued") : t("inspection.submit")}
-          </Button>
-        </div>
+      <div style={{ flex: "none", padding: "12px 16px calc(24px + var(--safe-bottom))", background: "linear-gradient(#F6F7FB00,#F6F7FB 34%)", display: "flex", gap: 10 }} className="mx-auto w-full max-w-5xl">
+        {isReview ? (
+          <>
+            <button type="button" className="btn-secondary" style={{ width: 64 }} onClick={() => setPhase("inspect")}>
+              {t("design.edit")}
+            </button>
+            <button type="button" className="btn-primary" data-tone="ink" style={{ flex: 1 }} disabled={submitting || blocking.length > 0} onClick={submit} data-testid="submit">
+              {submitting ? t("inspection.submitting") : critical ? t("design.submitCritical", { n: critical }) : t("inspection.submit")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn-secondary" style={{ width: 64 }} onClick={() => setPhase("equipment")}>
+              {t("app.back")}
+            </button>
+            <button type="button" className="btn-primary" data-tone={left > 0 ? "ink" : undefined} style={{ flex: 1 }} onClick={() => setPhase("review")} data-testid="review">
+              {left > 0 ? t("design.reviewLeft", { n: left }) : t("design.reviewFull")}
+            </button>
+          </>
+        )}
       </div>
 
-      {selected !== null && evaluation ? (
+      {selected !== null && evaluation && !isReview ? (
         <TireSheet
           key={selected}
           tire={draft.tires[selected] ?? emptyTire(selected)}
@@ -399,15 +373,30 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
           onAddPhotos={(files) => addPhotos(selected, files)}
           onRemovePhoto={(id) => void removePhoto(selected, id)}
           onClose={() => setSelected(null)}
-          onPrev={idx > 0 ? () => setSelected(order[idx - 1]) : undefined}
-          onNext={idx >= 0 && idx < order.length - 1 ? () => setSelected(order[idx + 1]) : undefined}
         />
       ) : null}
-    </>
-  );
-}
 
-function OfflineBanner() {
-  const { t } = useI18n();
-  return <div className="bg-status-yellow-soft px-4 py-1.5 text-center text-[12px] font-semibold text-[#92400e]">{t("app.offline")}</div>;
+      {submitted ? (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "var(--ink)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, padding: 40 }} data-testid="submitted">
+          <div style={{ width: 76, height: 76, borderRadius: 24, background: "linear-gradient(150deg, var(--indigo), var(--cosmic))", display: "grid", placeItems: "center", font: "700 30px/1 var(--font-sans)", color: "#fff" }}>✓</div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ font: "700 24px/1.2 var(--font-sans)", color: "#fff" }}>{t("design.submitted.title")}</div>
+            <div style={{ font: "500 14px/1.5 var(--font-sans)", color: "rgba(255,255,255,.6)", marginTop: 8 }}>
+              {submitted.inspectionId ? t("design.submitted.body", { n: submitted.flagged }) : t("design.submitted.queued")}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            {submitted.inspectionId ? (
+              <Link href={`/report/${submitted.inspectionId}?new=1`} className="btn-primary" style={{ width: "auto", padding: "0 26px", height: 52, borderRadius: 15, fontSize: 15 }} data-testid="view-report">
+                {t("design.submitted.viewReport")}
+              </Link>
+            ) : null}
+            <button type="button" className="btn-ghost-light" onClick={startNew}>
+              {t("design.submitted.startAnother")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>,
+  );
 }

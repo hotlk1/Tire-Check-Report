@@ -68,6 +68,7 @@ export async function listReports(scope: Scope & { tenantId: string }, f: Report
 
 export interface TireEdit {
   absent?: boolean;
+  damageType?: string | null;
   psi?: number | null;
   tread32?: number | null;
   damage?: DamageStatus;
@@ -91,8 +92,8 @@ export async function updateTireEntry(scope: Scope & { tenantId: string; userId:
     const v = validateThresholdConfig(insp.config);
     const config = v.ok ? v.config : DEFAULT_THRESHOLDS;
 
-    const entries = await tx<{ id: string; tire_number: number; psi: number | null; tread_32nds: number | null; damage: DamageStatus; absent: boolean; notes: string | null; tire_make: string | null; tire_model: string | null; tire_size: string | null; photos: number }[]>`
-      select te.id, te.tire_number, te.psi::float8 as psi, te.tread_32nds, te.damage, te.absent, te.notes, te.tire_make, te.tire_model, te.tire_size,
+    const entries = await tx<{ id: string; tire_number: number; psi: number | null; tread_32nds: number | null; damage: DamageStatus; damage_type: string | null; absent: boolean; notes: string | null; tire_make: string | null; tire_model: string | null; tire_size: string | null; photos: number }[]>`
+      select te.id, te.tire_number, te.psi::float8 as psi, te.tread_32nds, te.damage, te.damage_type, te.absent, te.notes, te.tire_make, te.tire_model, te.tire_size,
              (select count(*)::int from photos p where p.tire_entry_id = te.id) as photos
       from tire_entries te where te.inspection_id = ${inspectionId}`;
     let target = entries.find((e) => e.tire_number === tireNumber);
@@ -102,10 +103,10 @@ export async function updateTireEntry(scope: Scope & { tenantId: string; userId:
       const [asset] = await tx<{ truck_asset_id: string | null; trailer_asset_id: string | null }[]>`select truck_asset_id, trailer_asset_id from inspections where id = ${inspectionId}`;
       const [row] = await tx<{ id: string }[]>`insert into tire_entries (tenant_id, inspection_id, asset_id, tire_number, position_code, axle_key)
         values (${scope.tenantId}, ${inspectionId}, ${pos.vehicle === "truck" ? asset.truck_asset_id : asset.trailer_asset_id}, ${tireNumber}, ${pos.abbreviation}, ${pos.axleKey}) returning id`;
-      target = { id: row.id, tire_number: tireNumber, psi: null, tread_32nds: null, damage: "none", absent: false, notes: null, tire_make: null, tire_model: null, tire_size: null, photos: 0 };
+      target = { id: row.id, tire_number: tireNumber, psi: null, tread_32nds: null, damage: "none", damage_type: null, absent: false, notes: null, tire_make: null, tire_model: null, tire_size: null, photos: 0 };
       entries.push(target);
     }
-    const before = { psi: target.psi, tread32: target.tread_32nds, damage: target.damage, absent: target.absent, notes: target.notes, tireMake: target.tire_make, tireModel: target.tire_model, tireSize: target.tire_size };
+    const before = { psi: target.psi, tread32: target.tread_32nds, damage: target.damage, damageType: target.damage_type, absent: target.absent, notes: target.notes, tireMake: target.tire_make, tireModel: target.tire_model, tireSize: target.tire_size };
     const after = { ...before, ...Object.fromEntries(Object.entries(edit).filter(([, v]) => v !== undefined)) } as typeof before;
 
     const readings: Record<number, TireReading> = {};
@@ -122,7 +123,7 @@ export async function updateTireEntry(scope: Scope & { tenantId: string; userId:
     }
     const ev = evaluateInspection(insp.mode, readings, config);
     const t = ev.tires[tireNumber];
-    await tx`update tire_entries set psi = ${after.psi}, tread_32nds = ${after.tread32}, damage = ${after.damage}, absent = ${after.absent}, notes = ${after.notes},
+    await tx`update tire_entries set psi = ${after.psi}, tread_32nds = ${after.tread32}, damage = ${after.damage}, damage_type = ${after.damage === "none" ? null : after.damageType}, absent = ${after.absent}, notes = ${after.notes},
       tire_make = ${after.tireMake}, tire_model = ${after.tireModel}, tire_size = ${after.tireSize},
       psi_status = ${t.psiStatus}, tread_status = ${t.treadStatus}, overall_status = ${t.overall} where id = ${target.id}`;
     // Refresh every entry's status (a change to one dual affects nothing else, but keep it consistent) and the summary.
