@@ -6,6 +6,13 @@ import { z } from "zod";
  */
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  /**
+   * Deployment tier, independent of NODE_ENV. `staging` runs a production
+   * build against real Supabase but may relax the CAPTCHA requirement (with a
+   * loud warning) while Turnstile keys are not configured. `production` never
+   * relaxes anything.
+   */
+  APP_ENV: z.enum(["development", "staging", "production"]).optional(),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   DRIVER_SESSION_SECRET: z.string().min(32, "DRIVER_SESSION_SECRET must be at least 32 characters"),
   APP_ENCRYPTION_KEY: z
@@ -35,11 +42,22 @@ export function env(): Env {
     throw new Error(`Invalid environment: ${issues}`);
   }
   cached = parsed.data;
-  if (cached.NODE_ENV === "production") {
+  const tier = appTier(cached);
+  if (tier === "production") {
     if (!cached.TURNSTILE_SECRET_KEY) throw new Error("TURNSTILE_SECRET_KEY is required in production");
     if (!cached.APP_ENCRYPTION_KEY) throw new Error("APP_ENCRYPTION_KEY is required in production");
+  }
+  if (tier === "staging" && !cached.TURNSTILE_SECRET_KEY) {
+    console.warn("[env] STAGING: TURNSTILE_SECRET_KEY not set – CAPTCHA disabled on this staging deployment");
   }
   return cached;
 }
 
-export const isProduction = () => env().NODE_ENV === "production";
+function appTier(e: Env): "development" | "staging" | "production" {
+  if (e.APP_ENV) return e.APP_ENV;
+  return e.NODE_ENV === "production" ? "production" : "development";
+}
+
+/** Effective deployment tier: APP_ENV if set, otherwise derived from NODE_ENV. */
+export const tier = () => appTier(env());
+export const isProduction = () => tier() === "production";

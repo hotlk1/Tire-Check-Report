@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { env, tier } from "@/lib/env";
 
 /**
  * Cloudflare Turnstile server-side verification.
@@ -10,8 +10,8 @@ import { env } from "@/lib/env";
 export async function verifyTurnstile(token: string | null | undefined, remoteIp?: string | null): Promise<{ ok: boolean; reason?: string }> {
   const secret = env().TURNSTILE_SECRET_KEY;
   if (!secret) {
-    if (env().NODE_ENV === "production") return { ok: false, reason: "captcha_not_configured" };
-    console.warn("[turnstile] DEV MODE: TURNSTILE_SECRET_KEY not set – CAPTCHA check skipped");
+    if (tier() === "production") return { ok: false, reason: "captcha_not_configured" };
+    console.warn(`[turnstile] ${tier().toUpperCase()}: TURNSTILE_SECRET_KEY not set – CAPTCHA check skipped`);
     return { ok: true };
   }
   if (!token) return { ok: false, reason: "missing_token" };

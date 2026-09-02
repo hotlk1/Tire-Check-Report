@@ -43,7 +43,7 @@ function Thumb({ photo, onRemove }: { photo: StoredPhoto; onRemove: () => void }
  * chips, optional brand/model/size, 3×4 keypad and Save. Readings typed on
  * the keypad are committed on Save or when the sheet closes.
  */
-export function TireSheet({ tire, evaluation, photos, analyzing, onChange, onAddPhotos, onRemovePhoto, onClose }: Props) {
+export function TireSheet({ tire, photos, analyzing, onChange, onAddPhotos, onRemovePhoto, onClose }: Props) {
   const t = useT();
   const pos = getPosition(tire.number);
   const axle = AXLES.find((a) => a.key === pos.axleKey);

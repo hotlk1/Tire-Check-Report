@@ -12,6 +12,8 @@ import { DEFAULT_THRESHOLDS } from "../src/lib/tires/thresholds";
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith("--")) ?? process.env.MIGRATE_DATABASE_URL ?? process.env.DATABASE_URL;
 const dev = args.includes("--dev");
+/** --staging: one "Test Fleet" tenant with a driver, a truck and a trailer for phone testing. */
+const staging = args.includes("--staging");
 if (!url) {
   console.error("Usage: tsx scripts/seed.ts <DATABASE_URL> [--dev]");
   process.exit(1);
@@ -86,6 +88,17 @@ async function main() {
       console.log("seeded DEV drivers (phone 5550000001 / 5550000002), assets, and admin users (admin@dev.local, manager@dev.local, editor@dev.local)");
     }
   });
+  if (staging) {
+    await sql.begin(async (tx) => {
+      await tx`select set_config('app.actor', 'super_admin', true)`;
+      await tx`insert into tenants (slug, name) values ('test', 'Test Fleet') on conflict (slug) do nothing`;
+      const [t] = await tx<{ id: string }[]>`select id from tenants where slug = 'test'`;
+      await tx`insert into drivers (tenant_id, full_name, phone, status) values (${t.id}, 'Test Driver', '5550001234', 'active') on conflict (tenant_id, phone) do nothing`;
+      await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'truck', 'T-100', 'Freightliner', 'Cascadia', 2023, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
+      await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'trailer', 'TR-500', 'Utility', '3000R', 2022, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
+    });
+    console.log("seeded STAGING tenant 'test' (Test Fleet): driver 5550001234, truck T-100, trailer TR-500");
+  }
   console.log("seed complete");
 }
 
