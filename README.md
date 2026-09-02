@@ -52,6 +52,12 @@ End-to-end smoke tests (dev server running): `npx playwright test`.
 
 Checks: `npm run verify` runs typecheck, lint, unit tests and a production build.
 
+## Staging
+
+Vercel project `tire-check-staging` (preview deployments from this branch) against the
+Supabase project `tire-check-staging`. Previews run with `APP_ENV=staging` derived from
+`VERCEL_ENV`; `/api/health` shows which integration variables the deployment received.
+
 ## Deploying (Vercel + Supabase)
 
 1. Create a Supabase project. Run migrations with either
