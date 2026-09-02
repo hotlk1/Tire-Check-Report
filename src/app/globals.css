@@ -314,3 +314,24 @@ input, button, select, textarea { font: inherit; }
   .no-print { display: none !important; }
   .print-page { box-shadow: none !important; border: none !important; }
 }
+
+/* Catalog picker (driver sheet) ------------------------------------------- */
+.catalog-picker .chip-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.chip-btn {
+  height: 38px; padding: 0 12px; border-radius: 11px; border: 1.5px solid #dce0ea; background: #fff;
+  color: #4b5468; font: 600 13px/1 "Barlow", system-ui, sans-serif; cursor: pointer; white-space: nowrap;
+}
+.chip-btn[data-active="true"] { border-color: #3d46c4; background: #eef0fe; color: #3d46c4; }
+.chip-btn.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.catalog-list { margin-top: 8px; border: 1px solid #e4e7ef; border-radius: 12px; overflow: hidden; max-height: 240px; overflow-y: auto; }
+.catalog-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border: 0; border-top: 1px solid #f1f3f8; background: #fff; text-align: left; cursor: pointer; }
+.catalog-row:first-child { border-top: 0; }
+.catalog-row-name { font: 600 13.5px/1.2 "Barlow", system-ui, sans-serif; color: #101b3d; }
+.catalog-row-size { font: 600 12.5px/1 "IBM Plex Mono", ui-monospace, monospace; color: #3d46c4; }
+.catalog-empty { padding: 12px; font: 500 12.5px/1.4 "Barlow", system-ui, sans-serif; color: #8a93a6; }
+.catalog-selected { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid #c9d0f5; background: #f7f8fe; border-radius: 13px; padding: 11px 13px; }
+.catalog-selected-name { font: 700 15px/1.15 "Barlow", system-ui, sans-serif; color: #101b3d; margin-top: 3px; }
+.catalog-selected-size { font: 600 13px/1.2 "IBM Plex Mono", ui-monospace, monospace; color: #3d46c4; margin-top: 2px; }
+.catalog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.catalog-grid .span-2, .link-btn.span-2 { grid-column: span 2; }
+.link-btn { border: 0; background: transparent; padding: 6px 0; color: #3d46c4; font: 600 13px/1 "Barlow", system-ui, sans-serif; cursor: pointer; text-align: left; }

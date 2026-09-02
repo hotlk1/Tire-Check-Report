@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CatalogPicker } from "./CatalogPicker";
 import { useT } from "@/i18n/client";
 import type { MessageKey } from "@/i18n";
 import type { DraftTire } from "@/lib/inspection/draft";
@@ -228,22 +229,17 @@ export function TireSheet({ tire, photos, analyzing, onChange, onAddPhotos, onRe
                 </button>
               )}
 
-              <button type="button" className="dashed-btn" style={{ marginTop: 14 }} onClick={() => setDetailsOpen((o) => !o)}>
+              <button type="button" className="dashed-btn" style={{ marginTop: 14 }} data-testid="details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
                 {detailsOpen ? t("design.sheet.detailsHide") : t("design.sheet.detailsAdd")}
               </button>
               {detailsOpen ? (
                 <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <div style={{ gridColumn: "span 2" }}>
-                    <div className="label-xs" style={{ letterSpacing: ".06em" }}>{t("design.sheet.brand")}</div>
-                    <input className="text-input" style={{ marginTop: 6 }} placeholder="e.g. Michelin" value={tire.tireMake ?? ""} onChange={(e) => onChange({ tireMake: e.target.value })} />
-                  </div>
-                  <div>
-                    <div className="label-xs" style={{ letterSpacing: ".06em" }}>{t("tire.model")}</div>
-                    <input className="text-input" style={{ marginTop: 6 }} placeholder="X Line" value={tire.tireModel ?? ""} onChange={(e) => onChange({ tireModel: e.target.value })} />
-                  </div>
-                  <div>
-                    <div className="label-xs" style={{ letterSpacing: ".06em" }}>{t("tire.size")}</div>
-                    <input className="text-input mono" style={{ marginTop: 6 }} placeholder="295/75R22.5" value={tire.tireSize ?? ""} onChange={(e) => onChange({ tireSize: e.target.value })} />
+                    <CatalogPicker
+                      value={{ tireVariantId: tire.tireVariantId ?? null, tireMake: tire.tireMake, tireModel: tire.tireModel, tireSize: tire.tireSize }}
+                      onChange={(sel) => onChange({ tireVariantId: sel.tireVariantId, tireMake: sel.tireMake, tireModel: sel.tireModel, tireSize: sel.tireSize })}
+                      online={typeof navigator === "undefined" ? true : navigator.onLine}
+                    />
                   </div>
                   <div style={{ gridColumn: "span 2" }}>
                     <div className="label-xs" style={{ letterSpacing: ".06em" }}>{t("tire.notes")}</div>

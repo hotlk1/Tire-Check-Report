@@ -62,6 +62,8 @@ export interface TireReading {
   tireMake?: string | null;
   tireModel?: string | null;
   tireSize?: string | null;
+  /** Catalog variant chosen from the cascading picker; null for custom / unlisted tires. */
+  tireVariantId?: string | null;
   notes?: string | null;
 }
 

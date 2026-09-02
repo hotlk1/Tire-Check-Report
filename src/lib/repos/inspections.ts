@@ -109,6 +109,11 @@ export async function createInspection(scope: Scope & { actor: "driver"; tenantI
               ${tx.json({ client: sub.client ?? {}, ip: meta.ip ?? null })})
       returning id`;
 
+    // Catalog variants are optional; unknown / invisible ids fall back to the free-text make/model/size.
+    const wanted = sub.tires.map((t) => t.tireVariantId).filter((v): v is string => !!v);
+    const variantIds = new Set(
+      wanted.length ? (await tx<{ id: string }[]>`select id from tire_variants where id in ${tx(wanted)}`).map((r) => r.id) : [],
+    );
     const tireEntryIds: Record<number, string> = {};
     for (const t of sub.tires) {
       const pos = getPosition(t.number);
@@ -116,9 +121,9 @@ export async function createInspection(scope: Scope & { actor: "driver"; tenantI
       const assetId = pos.vehicle === "truck" ? (truck?.id ?? null) : (trailer?.id ?? null);
       const [row] = await tx<{ id: string }[]>`
         insert into tire_entries (tenant_id, inspection_id, asset_id, tire_number, position_code, axle_key, psi, tread_32nds, damage, damage_type, absent,
-                                  tire_make, tire_model, tire_size, psi_status, tread_status, overall_status, notes, ai_suggestion)
+                                  tire_make, tire_model, tire_size, tire_variant_id, psi_status, tread_status, overall_status, notes, ai_suggestion)
         values (${scope.tenantId}, ${ins.id}, ${assetId}, ${t.number}, ${pos.abbreviation}, ${pos.axleKey}, ${t.psi}, ${t.tread32}, ${t.damage}, ${t.damageType ?? null}, ${!!t.absent && pos.positionClass === "spare"},
-                ${t.tireMake ?? null}, ${t.tireModel ?? null}, ${t.tireSize ?? null}, ${ev.psiStatus}, ${ev.treadStatus}, ${ev.overall},
+                ${t.tireMake ?? null}, ${t.tireModel ?? null}, ${t.tireSize ?? null}, ${variantIds.has(t.tireVariantId ?? "") ? t.tireVariantId : null}, ${ev.psiStatus}, ${ev.treadStatus}, ${ev.overall},
                 ${t.notes ?? null}, ${t.aiSuggestion ? tx.json(t.aiSuggestion as postgres.JSONValue) : null})
         returning id`;
       tireEntryIds[t.number] = row.id;
@@ -202,6 +207,8 @@ export interface ReportTire {
   tire_make: string | null;
   tire_model: string | null;
   tire_size: string | null;
+  tire_variant_id: string | null;
+  variant_label: string | null;
   psi_status: "none" | "green" | "yellow" | "red";
   tread_status: "none" | "green" | "yellow" | "red";
   overall_status: "none" | "green" | "yellow" | "red";
@@ -252,9 +259,14 @@ export async function loadReport(scope: Scope & { tenantId: string }, inspection
     if (!r) return null;
 
     const entries = await tx<Omit<ReportTire, "photos">[]>`
-      select id, tire_number, position_code, axle_key, psi::float8 as psi, tread_32nds, damage, damage_type, absent, tire_make, tire_model, tire_size,
-             psi_status, tread_status, overall_status, notes, ai_suggestion
-      from tire_entries where inspection_id = ${inspectionId} order by tire_number`;
+      select te.id, te.tire_number, te.position_code, te.axle_key, te.psi::float8 as psi, te.tread_32nds, te.damage, te.damage_type, te.absent, te.tire_make, te.tire_model, te.tire_size,
+             te.tire_variant_id, case when v.id is null then null else b.name || ' ' || m.name || ' ' || v.size || coalesce(' ' || v.load_range, '') end as variant_label,
+             te.psi_status, te.tread_status, te.overall_status, te.notes, te.ai_suggestion
+      from tire_entries te
+      left join tire_variants v on v.id = te.tire_variant_id
+      left join tire_models m on m.id = v.model_id
+      left join tire_brands b on b.id = v.brand_id
+      where te.inspection_id = ${inspectionId} order by te.tire_number`;
     const photos = await tx<{ id: string; tire_entry_id: string | null; storage_path: string; taken_at: string | null }[]>`
       select id, tire_entry_id, storage_path, taken_at from photos where inspection_id = ${inspectionId} and storage_path <> '' order by created_at`;
 

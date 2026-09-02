@@ -199,7 +199,12 @@ function TireDetail({ tire, number, history, onClose }: { tire: ReportTire | nul
                 <Kpi label={t("design.sheet.treadLabel")} value={tire.tread_32nds !== null ? `${tire.tread_32nds}` : "—"} status={tire.tread_status} />
                 <Kpi label={t("tire.damage")} value={tire.damage === "none" ? t("damage.none") : tire.damage_type ? t(`design.damageTypes.${tire.damage_type as "bulge"}`) : t(`damage.${tire.damage}`)} status={tire.damage === "none" ? "none" : tire.damage === "repairable" ? "yellow" : "red"} small />
               </div>
-              {tire.tire_make || tire.tire_model || tire.tire_size ? <p style={{ marginTop: 10, font: "500 13px/1.4 var(--font-sans)", color: "var(--text-2)" }}>{[tire.tire_make, tire.tire_model, tire.tire_size].filter(Boolean).join(" · ")}</p> : null}
+              {tire.variant_label || tire.tire_make || tire.tire_model || tire.tire_size ? (
+                <p style={{ marginTop: 10, font: "500 13px/1.4 var(--font-sans)", color: "var(--text-2)" }}>
+                  {tire.variant_label ?? [tire.tire_make, tire.tire_model, tire.tire_size].filter(Boolean).join(" · ")}
+                  {tire.variant_label ? <span style={{ marginLeft: 6, font: "700 10px/1 var(--font-sans)", letterSpacing: ".08em", color: "var(--accent)" }}>{t("tire.catalog.selected").toUpperCase()}</span> : null}
+                </p>
+              ) : null}
               {tire.notes ? <p style={{ marginTop: 6, whiteSpace: "pre-wrap", font: "500 13px/1.4 var(--font-sans)" }}>{tire.notes}</p> : null}
               <div className="label" style={{ marginTop: 16 }}>{t("report.photos")}</div>
               {tire.photos.length === 0 ? (

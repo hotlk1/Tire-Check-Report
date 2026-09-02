@@ -29,7 +29,15 @@ export default async function TiresPage({ searchParams }: PageProps<"/admin/tire
   };
   return (
     <>
-      <PageHeader title={t("admin.tires.title")} subtitle={`${t("admin.tires.subtitle")} · ${t("admin.common.total", { count: total })}`} />
+      <PageHeader
+        title={t("admin.tires.title")}
+        subtitle={`${t("admin.tires.subtitle")} · ${t("admin.common.total", { count: total })}`}
+        actions={
+          <Link className={btnSecondary} href="/admin/tires/catalog" data-testid="open-catalog">
+            {t("admin.catalog.title")} ›
+          </Link>
+        }
+      />
       <form className="mb-3 flex flex-wrap items-end gap-2" method="get">
         <select name="status" defaultValue={status} className={selectCls + " h-9 w-40"}>
           <option value="all">{t("admin.common.all")}</option>

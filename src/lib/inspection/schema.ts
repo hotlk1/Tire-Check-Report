@@ -28,6 +28,7 @@ export const tireSubmissionSchema = z.object({
   tireMake: z.string().max(80).nullable().optional(),
   tireModel: z.string().max(80).nullable().optional(),
   tireSize: z.string().max(40).nullable().optional(),
+  tireVariantId: z.string().uuid().nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   photoClientIds: z.array(z.string().uuid()).max(20).default([]),
   /** Spares only: explicit "No spare". */

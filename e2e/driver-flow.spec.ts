@@ -66,7 +66,18 @@ test("driver can verify, inspect a truck, review and see the report", async ({ p
   await page.getByTestId("review").click();
   await expect(page.getByTestId("issues")).toBeVisible();
   await expect(page.getByTestId("submit")).toBeDisabled();
+
   await page.getByRole("button", { name: "Edit" }).click();
+
+  // Catalog picker: tire 1 gets a catalog variant (search → pick), never blocking.
+  await page.locator('[data-tire="1"]').first().click();
+  const sheet1 = page.locator("[data-tire-sheet]");
+  await sheet1.getByTestId("details-toggle").click();
+  await sheet1.getByTestId("catalog-search").fill("michelin");
+  await sheet1.locator(".catalog-row").first().click();
+  await expect(sheet1.getByTestId("catalog-selected")).toContainText("Michelin");
+  await page.screenshot({ path: "e2e/out/d4b-catalog-picked.png", fullPage: true });
+  await sheet1.getByTestId("save-tire").click();
 
   const values: Record<number, [number, number]> = { 1: [108, 12], 2: [106, 11], 3: [102, 10], 4: [101, 9], 5: [103, 10], 6: [102, 10], 7: [100, 8], 8: [95, 4], 9: [104, 12], 10: [102, 12] };
   for (const [n, [psi, tread]] of Object.entries(values)) {
@@ -91,6 +102,11 @@ test("driver can verify, inspect a truck, review and see the report", async ({ p
   await expect(page.getByTestId("submitted")).toBeVisible({ timeout: 30000 });
   await page.screenshot({ path: "e2e/out/d7-submitted.png", fullPage: true });
   await page.getByTestId("view-report").click();
+  await page.waitForURL(/\/report\//, { timeout: 30000 });
+  await page.locator('[data-tire="1"]').first().click();
+  await expect(page.getByRole("dialog")).toContainText("Michelin");
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.waitForURL(/\/report\//);
   await expect(page.locator("[data-diagram]")).toBeVisible();
   await page.screenshot({ path: "e2e/out/d8-report.png", fullPage: true });

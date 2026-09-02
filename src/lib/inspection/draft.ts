@@ -34,6 +34,8 @@ export interface DraftTire {
   tireMake?: string;
   tireModel?: string;
   tireSize?: string;
+  /** Catalog variant id when the tire was picked from the catalog (make/model/size are copied as text too). */
+  tireVariantId?: string | null;
   notes?: string;
   aiSuggestion?: DraftAiSuggestion | null;
 }
@@ -120,6 +122,7 @@ export function toReadings(draft: InspectionDraft): Record<number, TireReading> 
       tireMake: t.tireMake ?? null,
       tireModel: t.tireModel ?? null,
       tireSize: t.tireSize ?? null,
+      tireVariantId: t.tireVariantId ?? null,
       notes: t.notes ?? null,
     };
   }
@@ -157,6 +160,7 @@ export function toSubmission(draft: InspectionDraft, client?: InspectionSubmissi
       tireMake: t.tireMake?.trim() || null,
       tireModel: t.tireModel?.trim() || null,
       tireSize: t.tireSize?.trim() || null,
+      tireVariantId: t.tireVariantId ?? null,
       notes: t.notes?.trim() || null,
       photoClientIds: t.photoIds,
       aiSuggestion: t.aiSuggestion ?? null,
