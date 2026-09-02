@@ -1,4 +1,10 @@
 import { appendFileSync, writeFileSync } from "node:fs";
+
+// Defaults match the local dev seed; override for staging (tenant "test", driver 5550001234, truck T-100).
+const TENANT = process.env.E2E_TENANT ?? "jgg";
+const PHONE = process.env.E2E_PHONE ?? "5550000001";
+const TRUCK_QUERY = process.env.E2E_TRUCK_QUERY ?? "T101";
+const TRUCK_NAME = process.env.E2E_TRUCK_NAME ?? "JGG-T101";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
