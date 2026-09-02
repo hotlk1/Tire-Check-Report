@@ -181,6 +181,7 @@ export const en = {
     noPhotos: "No photos",
     print: "Print / PDF",
     newInspection: "New inspection",
+    tapHint: "Tap a tire for details, photos and history.",
     tireDetails: "Tire details",
     history: "History",
     historyEmpty: "No previous readings for this position.",

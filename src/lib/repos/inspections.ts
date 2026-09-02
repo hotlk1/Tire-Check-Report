@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import type postgres from "postgres";
 import { withScope, type Scope, type Tx } from "@/lib/db/client";
 import type { InspectionSubmission } from "@/lib/inspection/schema";
@@ -168,14 +169,17 @@ export async function addPhoto(scope: Scope & { tenantId: string }, input: AddPh
     }
 
     const ext = input.contentType === "image/png" ? "png" : input.contentType === "image/webp" ? "webp" : "jpg";
+    // The id and object path are decided up front so the row is complete on insert
+    // (driver sessions may insert photos but never update them).
+    const photoId = randomUUID();
+    const objectPath = `${scope.tenantId}/${input.inspectionId}/${photoId}.${ext}`;
     const [photo] = await tx<{ id: string }[]>`
-      insert into photos (tenant_id, inspection_id, tire_entry_id, client_photo_id, storage_provider, storage_path, content_type, byte_size, width, height, taken_at)
-      values (${scope.tenantId}, ${input.inspectionId}, ${tireEntryId}, ${input.clientPhotoId}, ${storage().name}, '', ${input.contentType},
+      insert into photos (id, tenant_id, inspection_id, tire_entry_id, client_photo_id, storage_provider, storage_path, content_type, byte_size, width, height, taken_at)
+      values (${photoId}, ${scope.tenantId}, ${input.inspectionId}, ${tireEntryId}, ${input.clientPhotoId}, ${storage().name}, ${objectPath}, ${input.contentType},
               ${input.bytes.byteLength}, ${input.width ?? null}, ${input.height ?? null}, ${input.takenAt ?? null})
       returning id`;
-    const objectPath = `${scope.tenantId}/${input.inspectionId}/${photo.id}.${ext}`;
+    // Upload inside the transaction: a failed upload rolls the row back.
     await storage().put(objectPath, input.bytes, input.contentType);
-    await tx`update photos set storage_path = ${objectPath} where id = ${photo.id}`;
     await tx`update inspections set photos_uploaded = photos_uploaded + 1 where id = ${input.inspectionId}`;
     return { photoId: photo.id, created: true };
   });

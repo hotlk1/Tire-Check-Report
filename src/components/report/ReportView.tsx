@@ -135,7 +135,7 @@ export function ReportView({ report, history, isNew, backHref }: Props) {
                 labels={{ truck: report.truck?.unit_number, trailer: report.trailer?.unit_number }}
                 size="md"
               />
-              <p className="no-print mt-2 text-[12px] text-text-3">{t("inspection.tapTire")}</p>
+              <p className="no-print mt-2 text-[12px] text-text-3">{t("report.tapHint")}</p>
             </div>
 
             <div className="space-y-4">

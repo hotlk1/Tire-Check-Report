@@ -179,6 +179,7 @@ export const es: Messages = {
     noPhotos: "Sin fotos",
     print: "Imprimir / PDF",
     newInspection: "Nueva inspección",
+    tapHint: "Toca una llanta para ver detalles, fotos e historial.",
     tireDetails: "Detalles de la llanta",
     history: "Historial",
     historyEmpty: "No hay lecturas previas para esta posición.",

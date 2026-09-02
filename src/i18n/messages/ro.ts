@@ -179,6 +179,7 @@ export const ro: Messages = {
     noPhotos: "Fără fotografii",
     print: "Printează / PDF",
     newInspection: "Inspecție nouă",
+    tapHint: "Atinge o anvelopă pentru detalii, fotografii și istoric.",
     tireDetails: "Detalii anvelopă",
     history: "Istoric",
     historyEmpty: "Nu există valori anterioare pentru această poziție.",

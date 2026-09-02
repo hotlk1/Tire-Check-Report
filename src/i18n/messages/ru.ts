@@ -179,6 +179,7 @@ export const ru: Messages = {
     noPhotos: "Нет фотографий",
     print: "Печать / PDF",
     newInspection: "Новая проверка",
+    tapHint: "Нажмите на шину, чтобы увидеть детали, фото и историю.",
     tireDetails: "Данные шины",
     history: "История",
     historyEmpty: "Для этой позиции нет предыдущих показаний.",

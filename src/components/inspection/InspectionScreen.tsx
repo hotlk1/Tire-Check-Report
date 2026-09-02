@@ -39,7 +39,8 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const [candidate, setCandidate] = useState<InspectionDraft | null>(null);
   const [photos, setPhotos] = useState<Record<string, StoredPhoto>>({});
   const [selected, setSelected] = useState<number | null>(null);
-  const [issues, setIssues] = useState<BlockingIssue[] | null>(null);
+  const [showIssues, setShowIssues] = useState(false);
+  const [serverIssues, setServerIssues] = useState<BlockingIssue[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState<number | null>(null);
@@ -201,16 +202,21 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const mode = draft?.mode ?? null;
   const evaluation = useMemo(() => (mode ? evaluateInspection(mode, readings) : null), [mode, readings]);
   const order = useMemo(() => (mode ? tiresForMode(mode) : []), [mode]);
+  const liveIssues = useMemo(
+    () => (draft && mode ? blockingIssues({ mode, truckSelected: !!draft.truck, trailerSelected: !!draft.trailer, odometer: draft.odometer, readings }) : []),
+    [draft, mode, readings],
+  );
+  const issues = showIssues ? (serverIssues && serverIssues.length ? serverIssues : liveIssues) : [];
 
   // ---- submit -------------------------------------------------------------------
   const submit = async () => {
     if (!draft || !draft.mode) return;
-    const found = blockingIssues({ mode: draft.mode, truckSelected: !!draft.truck, trailerSelected: !!draft.trailer, odometer: draft.odometer, readings });
-    if (found.length) {
-      setIssues(found);
+    setServerIssues(null);
+    if (liveIssues.length) {
+      setShowIssues(true);
       return;
     }
-    setIssues(null);
+    setShowIssues(false);
     setSubmitting(true);
     setSubmitError(null);
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -225,7 +231,8 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
       router.push(`/report/${result.inspectionId}?new=1`);
     } else if (!result.retryable) {
       setSubmitError(result.error);
-      setIssues((result.issues as BlockingIssue[] | undefined) ?? null);
+      setServerIssues((result.issues as BlockingIssue[] | undefined) ?? null);
+      setShowIssues(true);
     }
   };
 
@@ -345,7 +352,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
             </div>
           </div>
 
-          {issues && issues.length ? (
+          {issues.length ? (
             <div className="mt-3 rounded-[var(--radius-lg)] border border-status-yellow/40 bg-status-yellow-soft p-3" data-testid="issues">
               <div className="text-[13px] font-bold text-[#92400e]">{t("inspection.issues.title")}</div>
               <ul className="mt-1 space-y-1">
