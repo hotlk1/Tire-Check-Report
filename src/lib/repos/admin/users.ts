@@ -21,6 +21,21 @@ export async function findUserByEmailUnscoped(email: string) {
   });
 }
 
+/**
+ * Called right after a Supabase sign-in: ensures the profile row exists (first
+ * sign-in of an invited user) and reports whether the identity may enter the
+ * admin app at all (super admin or at least one membership).
+ */
+export async function userHasAdminAccess(identity: { id: string; email: string; name?: string | null }): Promise<boolean> {
+  return withScope({ actor: "system", userId: identity.id }, async (tx) => {
+    const [user] = await tx<{ is_super_admin: boolean }[]>`insert into users (id, email, full_name) values (${identity.id}, ${identity.email.toLowerCase()}, ${identity.name ?? null})
+      on conflict (id) do update set email = excluded.email returning is_super_admin`;
+    if (user?.is_super_admin) return true;
+    const [m] = await tx<{ n: number }[]>`select count(*)::int as n from memberships m join tenants t on t.id = m.tenant_id where m.user_id = ${identity.id} and t.status = 'active'`;
+    return (m?.n ?? 0) > 0;
+  });
+}
+
 export async function listDevUsers() {
   return withScope({ actor: "super_admin" }, async (tx) =>
     tx<{ id: string; email: string; full_name: string | null; is_super_admin: boolean }[]>`select id, email, full_name, is_super_admin from users order by email limit 50`,

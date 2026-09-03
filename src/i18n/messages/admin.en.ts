@@ -14,7 +14,7 @@ export const adminEn = {
     signOut: "Sign out",
     tenant: "Tenant",
   },
-  login: { linkTitle: "Sign in with an email link", linkSubmit: "Email me a sign-in link", linkHint: "We send a one-time link to your admin email. No password needed.", linkSent: "Check your inbox for the sign-in link. It expires in a few minutes.", passwordInstead: "Sign in with a password instead",
+  login: { linkTitle: "Sign in with an email link", linkSubmit: "Email me a sign-in link", linkHint: "We send a one-time link to your admin email. No password needed.", linkSent: "Check your inbox for the sign-in link. It expires in a few minutes.", linkFailed: "That sign-in link is invalid or has already been used. Request a new one.", passwordInstead: "Sign in with a password instead",
     title: "Admin sign-in",
     email: "Email",
     password: "Password",

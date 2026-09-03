@@ -15,10 +15,11 @@ export async function GET() {
     vercelEnv: process.env.VERCEL_ENV ?? null,
     gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null,
     commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    canonicalOrigin: process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : null),
   };
   // Names only (never values) of integration-provided variables, to diagnose wiring.
   checks.envNames = Object.keys(process.env)
-    .filter((k) => /SUPABASE|POSTGRES|DATABASE_URL|TURNSTILE|APP_ENV|DRIVER_SESSION/i.test(k))
+    .filter((k) => /SUPABASE|POSTGRES|DATABASE_URL|TURNSTILE|APP_ENV|DRIVER_SESSION|VERCEL_ENV|VERCEL_PROJECT_PRODUCTION_URL|NEXT_PUBLIC_APP_URL/i.test(k))
     .sort();
   try {
     const e = env();

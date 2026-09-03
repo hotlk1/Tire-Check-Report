@@ -60,9 +60,28 @@ Checks: `npm run verify` runs typecheck, lint, unit tests and a production build
 | `staging` | Stable testing branch; feature branches merge here when ready to test | Vercel project `tire-check-staging`, whose **Production** environment is our staging (Production Branch = `staging`), connected only to the Supabase project `tire-check-staging` via the Supabase integration |
 | `claude/…`, feature branches | Work in progress | Vercel previews of `tire-check-staging` (no database variables; only useful for build checks) |
 
+`staging` is a **stable user-test environment**, not a development branch: work happens on
+feature branches (local dev, migrations and automated tests first), and only fully tested
+checkpoints are merged into `staging`, with any required migration applied to the staging
+database in the same coordinated step. Schema changes must be backward-compatible with the
+version currently deployed. The automated staging smoke test uses its own driver
+(`5550009999`, truck `E2E-100`, trailer `E2E-500`) so manual testers' data is never touched.
+
 The app never treats a `staging`-branch deployment as the production tier (see `APP_ENV`
 derivation in `src/lib/env.ts`), so CAPTCHA may be absent there with a logged warning.
-`/api/health` reports which integration variables a deployment received (names only).
+`/api/health` reports which integration variables a deployment received (names only) and
+the canonical origin.
+
+### Canonical origin and Supabase Auth URLs
+
+Production deployments answer on several Vercel aliases; `src/proxy.ts` redirects every
+alias to the project's production URL (`VERCEL_PROJECT_PRODUCTION_URL`, or
+`NEXT_PUBLIC_APP_URL` when set) so cookies and the magic-link PKCE verifier always live on
+one host. In the Supabase dashboard (Authentication → URL Configuration) set the Site URL to
+that origin and add the redirect URLs `https://<origin>/auth/callback`,
+`https://*-<team-slug>.vercel.app/**` (previews) and `http://localhost:3000/**`. If a
+redirect is ever not allowed, Supabase falls back to the Site URL and the proxy routes the
+`?code=` it delivers into `/auth/callback` on the same host.
 
 ## Deploying (Vercel + Supabase)
 

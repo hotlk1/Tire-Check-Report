@@ -5,8 +5,9 @@ import { useT } from "@/i18n/client";
 import { loginAction, magicLinkAction, type FormState } from "@/app/admin/actions";
 import { Field, inputCls, selectCls } from "./ui";
 
-export function LoginForm({ dev, devUsers }: { dev: boolean; devUsers: { email: string; name: string | null; superAdmin: boolean }[] }) {
+export function LoginForm({ dev, devUsers, initialError }: { dev: boolean; devUsers: { email: string; name: string | null; superAdmin: boolean }[]; initialError?: string }) {
   const t = useT();
+  const initialMessage = initialError === "no_access" ? t("admin.login.noAccess") : initialError === "link" ? t("admin.login.linkFailed") : initialError ? t("admin.login.failed") : null;
   const [state, action, pending] = useActionState<FormState, FormData>(loginAction, {});
   const [linkState, linkAction, linkPending] = useActionState<FormState, FormData>(magicLinkAction, {});
   if (!dev && linkState.ok) {
@@ -14,6 +15,11 @@ export function LoginForm({ dev, devUsers }: { dev: boolean; devUsers: { email: 
   }
   return (
     <>
+    {initialMessage ? (
+      <div className="notice mb-3" data-status="red" style={{ display: "block", font: "600 12.5px/1.4 var(--font-sans)" }} role="alert" data-testid="login-error">
+        {initialMessage}
+      </div>
+    ) : null}
     {!dev ? (
       <form action={linkAction} className="mb-4 space-y-2 border-b border-border pb-4">
         <div className="text-[12px] font-semibold text-text-2">{t("admin.login.linkTitle")}</div>
