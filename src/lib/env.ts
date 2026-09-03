@@ -8,16 +8,34 @@ import { z } from "zod";
 /**
  * Normalize hosting-provided variables before validation so the app runs on
  * Vercel with the Supabase integration without hand-copied secrets:
- *  - DATABASE_URL            ← POSTGRES_URL (transaction pooler) 
+ *  - DATABASE_URL            ← POSTGRES_URL | POSTGRES_PRISMA_URL | POSTGRES_URL_NON_POOLING
  *  - NEXT_PUBLIC_SUPABASE_URL ← SUPABASE_URL
  *  - anon/publishable key    ← NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | SUPABASE_PUBLISHABLE_KEY | *_ANON_KEY
  *  - secret key              ← SUPABASE_SECRET_KEY | SUPABASE_SERVICE_ROLE_KEY (legacy)
  *  - APP_ENV                 ← VERCEL_ENV + VERCEL_GIT_COMMIT_REF (production only from `main`)
  *  - DRIVER_SESSION_SECRET   ← derived from the Supabase secret / JWT secret when not set explicitly
  */
+/**
+ * First available integration-managed Postgres URL. All three point at the same
+ * database: POSTGRES_URL (transaction pooler), POSTGRES_PRISMA_URL (same, with a
+ * pgbouncer flag that postgres.js must not receive) and POSTGRES_URL_NON_POOLING
+ * (session pooler). Parameters postgres.js does not understand are stripped.
+ */
+function pickPostgresUrl(e: NodeJS.ProcessEnv): string | undefined {
+  const raw = e.POSTGRES_URL || e.POSTGRES_PRISMA_URL || e.POSTGRES_URL_NON_POOLING;
+  if (!raw) return undefined;
+  try {
+    const u = new URL(raw);
+    for (const k of ["pgbouncer", "connection_limit", "pool_timeout", "supa"]) u.searchParams.delete(k);
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 function normalizeHostEnv(raw: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const e: NodeJS.ProcessEnv = { ...raw };
-  e.DATABASE_URL ||= e.POSTGRES_URL || e.POSTGRES_PRISMA_URL;
+  e.DATABASE_URL ||= pickPostgresUrl(e);
   e.NEXT_PUBLIC_SUPABASE_URL ||= e.SUPABASE_URL;
   e.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= e.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || e.SUPABASE_PUBLISHABLE_KEY || e.SUPABASE_ANON_KEY;
   e.SUPABASE_SECRET_KEY ||= e.SUPABASE_SERVICE_ROLE_KEY;

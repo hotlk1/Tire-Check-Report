@@ -52,11 +52,17 @@ End-to-end smoke tests (dev server running): `npx playwright test`.
 
 Checks: `npm run verify` runs typecheck, lint, unit tests and a production build.
 
-## Staging
+## Branches and environments
 
-Vercel project `tire-check-staging` (preview deployments from this branch) against the
-Supabase project `tire-check-staging`. Previews run with `APP_ENV=staging` derived from
-`VERCEL_ENV`; `/api/health` shows which integration variables the deployment received.
+| Branch | Purpose | Deploys to |
+| --- | --- | --- |
+| `main` | Reserved for the future production application | (nothing yet) |
+| `staging` | Stable testing branch; feature branches merge here when ready to test | Vercel project `tire-check-staging`, whose **Production** environment is our staging (Production Branch = `staging`), connected only to the Supabase project `tire-check-staging` via the Supabase integration |
+| `claude/…`, feature branches | Work in progress | Vercel previews of `tire-check-staging` (no database variables; only useful for build checks) |
+
+The app never treats a `staging`-branch deployment as the production tier (see `APP_ENV`
+derivation in `src/lib/env.ts`), so CAPTCHA may be absent there with a logged warning.
+`/api/health` reports which integration variables a deployment received (names only).
 
 ## Deploying (Vercel + Supabase)
 
@@ -116,4 +122,3 @@ is built from the specification and design tokens are isolated in
 aligned to the design file in one place. Put the design files in `design/`
 when available.
 
-<!-- staging redeploy marker: 2026-09-03T00:15:18Z -->
