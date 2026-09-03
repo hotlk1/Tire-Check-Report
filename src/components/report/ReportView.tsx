@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/i18n/client";
-import type { MessageKey } from "@/i18n";
 import { TireDiagram } from "@/components/tire/TireDiagram";
+import { componentName, positionLabel } from "@/lib/equipment/labels";
 import { buildIssues, verdictOf } from "@/lib/inspection/issues";
 import type { HistoryPoint, ReportData, ReportTire } from "@/lib/repos/inspections";
-import { AXLES, evaluateInspection, getPosition, tiresForMode, type TireReading } from "@/lib/tires";
+import { evaluateInspection, type TireReading } from "@/lib/tires";
 
 interface Props {
   report: ReportData;
@@ -21,10 +21,13 @@ interface Props {
 function readingsOf(report: ReportData): Record<number, TireReading> {
   const out: Record<number, TireReading> = {};
   for (const t of report.tires) {
-    out[t.tire_number] = { number: t.tire_number, psi: t.psi, tread32: t.tread_32nds, damage: t.damage, photoCount: t.photos.length, absent: t.absent };
+    const pos = report.layout.positions.find((p) => p.number === t.tire_number);
+    if (!pos) continue;
+    out[t.tire_number] = { key: pos.key, number: t.tire_number, psi: t.psi, tread32: t.tread_32nds, damage: t.damage, photoCount: t.photos.length, absent: t.absent };
   }
   return out;
 }
+
 
 /**
  * Hosted one-page report in the same visual language as the review screen
@@ -35,10 +38,11 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
   const { t, locale } = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const readings = useMemo(() => readingsOf(report), [report]);
-  const evaluation = useMemo(() => evaluateInspection(report.mode, readings, report.threshold.config), [report, readings]);
+  const layout = report.layout;
+  const evaluation = useMemo(() => evaluateInspection(layout, readings, report.threshold.config), [layout, readings, report.threshold.config]);
   const issues = useMemo(
-    () => buildIssues({ mode: report.mode, readings, truckSelected: !!report.truck, trailerSelected: !!report.trailer, odometer: report.odometer, config: report.threshold.config }).filter((i) => !i.blocking),
-    [report, readings],
+    () => buildIssues({ layout, readings, odometer: report.odometer, config: report.threshold.config }).filter((i) => !i.blocking || i.tag === "photo"),
+    [layout, readings, report.odometer, report.threshold.config],
   );
   const byNumber = useMemo(() => new Map(report.tires.map((x) => [x.tire_number, x])), [report.tires]);
   const verdict = verdictOf(issues);
@@ -46,15 +50,8 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
   const submitted = new Date(report.submitted_at).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
   const pendingPhotos = Math.max(0, report.photos_expected - report.photos_uploaded);
   const sel = selected !== null ? byNumber.get(selected) : undefined;
-  const axleLabel = (key: string) => {
-    if (key.endsWith("-spare")) return t("design.sheet.spare");
-    const axle = AXLES.find((a) => a.key === key);
-    return axle ? t(axle.labelKey as MessageKey) : key;
-  };
-  const labels = {
-    truck: report.truck ? `${t("equipment.truck")} ${report.truck.unit_number}${report.truck.make ? ` · ${report.truck.make} ${report.truck.model ?? ""}` : ""}` : undefined,
-    trailer: report.trailer ? `${t("equipment.trailer")} ${report.trailer.unit_number}${report.trailer.make ? ` · ${report.trailer.make} ${report.trailer.model ?? ""}` : ""}` : undefined,
-  };
+  const posOf = (n: number) => layout.positions.find((p) => p.number === n);
+  const unitsLine = layout.components.map((c) => `${componentName(t, c)} ${c.unitNumber ?? ""}`.trim()).join(" · ");
 
   return (
     <div className={embedded ? "" : "min-h-dvh"} style={{ background: embedded ? undefined : "var(--bg)" }}>
@@ -80,6 +77,7 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
             <Link href={backHref} className="a-link">{t("report.newInspection")}</Link>
           </div>
         ) : null}
+        {report.status === "pending_photos" ? <div className="notice" data-status="red" style={{ marginBottom: 12, font: "600 12.5px/1.4 var(--font-sans)" }} data-testid="pending-required-photos">{t("report.pendingRequiredPhotos", { count: report.required_photos_missing })}</div> : null}
         {pendingPhotos > 0 ? <div className="no-print notice" style={{ marginBottom: 12, background: "var(--indigo-soft)", color: "var(--indigo)", font: "600 12.5px/1.4 var(--font-sans)" }}>{t("report.pendingPhotos", { count: pendingPhotos })}</div> : null}
 
         <div className="print-page md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-4">
@@ -87,7 +85,7 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
             <div className="card" style={{ padding: "14px 16px", marginBottom: 12, borderRadius: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div className="h3">{[report.truck && `${t("equipment.truck")} ${report.truck.unit_number}`, report.trailer && `${t("equipment.trailer")} ${report.trailer.unit_number}`].filter(Boolean).join(" · ")}</div>
+                  <div className="h3">{unitsLine}</div>
                   <div style={{ font: "500 11.5px/1.3 var(--font-sans)", color: "var(--muted)", marginTop: 3 }}>
                     {report.driver.name}
                     {report.odometer !== null ? ` · Odo ${Math.round(report.odometer).toLocaleString(locale)} mi` : ""}
@@ -111,7 +109,7 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
                 </div>
               </div>
             </div>
-            <TireDiagram mode={report.mode} readings={readings} evaluation={evaluation} selected={selected} onSelect={setSelected} labels={labels} />
+            <TireDiagram layout={layout} readings={readings} evaluation={evaluation} selected={selected} onSelect={setSelected} />
             <p className="no-print" style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", marginTop: 4, padding: "0 4px" }}>{t("report.tapHint")}</p>
           </div>
 
@@ -122,12 +120,12 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
                 <span className="chip-mono" style={{ color: "var(--st-crit)", background: "var(--st-crit-tint)", fontSize: 11 }}>{issues.length}</span>
               </div>
               {issues.map((it, k) => {
-                const pos = getPosition(it.tire);
+                const pos = posOf(it.tire);
                 return (
                   <button key={k} type="button" onClick={() => setSelected(it.tire)} style={{ display: "flex", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--hair-2)", alignItems: "flex-start", width: "100%", textAlign: "left" }} data-status={it.status}>
                     <span style={{ flex: "none", width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", font: "700 12px/1 var(--font-mono)", background: "var(--s-soft)", color: "var(--s)" }}>{it.tire}</span>
                     <span style={{ flex: 1, minWidth: 0, display: "block" }}>
-                      <span style={{ display: "block", font: "700 14px/1.2 var(--font-sans)", color: "var(--ink)" }}>{t("tire.title", { number: it.tire })} · {axleLabel(pos.axleKey)} {pos.positionClass === "spare" ? "" : pos.abbreviation}</span>
+                      <span style={{ display: "block", font: "700 14px/1.2 var(--font-sans)", color: "var(--ink)" }}>{t("tire.title", { number: it.tire })} · {positionLabel(t, layout, it.tire)} {pos?.isSpare ? "" : (pos?.abbreviation ?? "")}</span>
                       <span style={{ display: "block", font: "500 12px/1.4 var(--font-sans)", color: "var(--text-3)", marginTop: 3 }}>{t(`design.issue.${it.textKey}`, it.params)}</span>
                     </span>
                     <span className="chip" style={{ flex: "none" }}>{t(`design.tags.${it.tag}`)}</span>
@@ -142,14 +140,14 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
               <div className="grid-head" style={{ display: "grid", gridTemplateColumns: "44px 1fr 60px 60px 90px" }}>
                 <span>{t("report.columns.tire")}</span><span>{t("report.columns.position")}</span><span>{t("report.columns.psi")}</span><span>{t("report.columns.tread")}</span><span>{t("report.columns.status")}</span>
               </div>
-              {tiresForMode(report.mode).map((n) => {
+              {layout.positions.map((pos) => {
+                const n = pos.number;
                 const x = byNumber.get(n);
-                const pos = getPosition(n);
-                if (!x && pos.positionClass === "spare") return null;
+                if (!x && pos.isSpare) return null;
                 return (
                   <button key={n} type="button" className="grid-row" style={{ display: "grid", gridTemplateColumns: "44px 1fr 60px 60px 90px", width: "100%", textAlign: "left" }} onClick={() => setSelected(n)}>
                     <span className="cell-mono">{n}</span>
-                    <span className="cell">{pos.abbreviation} · {axleLabel(pos.axleKey)}{x?.damage && x.damage !== "none" ? ` · ${x.damage_type ? t(`design.damageTypes.${x.damage_type as "bulge"}`) : t(`damage.${x.damage}`)}` : ""}</span>
+                    <span className="cell">{pos.abbreviation} · {positionLabel(t, layout, n)}{x?.damage && x.damage !== "none" ? ` · ${x.damage_type ? t(`design.damageTypes.${x.damage_type as "bulge"}`) : t(`damage.${x.damage}`)}` : ""}</span>
                     <span className="cell-num" data-status={x?.psi_status ?? "none"} style={{ color: x?.psi_status && x.psi_status !== "none" ? "var(--s)" : undefined }}>{x?.psi ?? "—"}</span>
                     <span className="cell-num" data-status={x?.tread_status ?? "none"} style={{ color: x?.tread_status && x.tread_status !== "none" ? "var(--s)" : undefined }}>{x?.absent ? "—" : x?.tread_32nds != null ? `${x.tread_32nds}/32` : "—"}</span>
                     <span className="chip" data-status={x?.overall_status ?? "none"} style={{ justifySelf: "start" }}>{x?.absent ? t("tire.noSpare") : t(`tire.status.${x?.overall_status ?? "none"}`)}</span>
@@ -169,14 +167,13 @@ export function ReportView({ report, history, isNew, backHref, embedded }: Props
         </div>
       </main>
 
-      {selected !== null ? <TireDetail tire={sel ?? null} number={selected} history={history.filter((h) => h.tire_number === selected)} onClose={() => setSelected(null)} /> : null}
+      {selected !== null ? <TireDetail tire={sel ?? null} number={selected} title={positionLabel(t, layout, selected)} history={history.filter((h) => (sel?.position_key ? h.position_key === sel.position_key : h.tire_number === selected))} onClose={() => setSelected(null)} /> : null}
     </div>
   );
 }
 
-function TireDetail({ tire, number, history, onClose }: { tire: ReportTire | null; number: number; history: HistoryPoint[]; onClose: () => void }) {
+function TireDetail({ tire, number, title, history, onClose }: { tire: ReportTire | null; number: number; title: string; history: HistoryPoint[]; onClose: () => void }) {
   const { t, locale } = useI18n();
-  const pos = getPosition(number);
   return (
     <>
       <div className="sheet-backdrop no-print" onClick={onClose} aria-hidden />
@@ -184,7 +181,7 @@ function TireDetail({ tire, number, history, onClose }: { tire: ReportTire | nul
         <header style={{ flex: "none", padding: "14px 18px 12px", borderBottom: "1px solid var(--hair-2)", display: "flex", alignItems: "center", gap: 12 }}>
           <span data-status={tire?.overall_status ?? "none"} style={{ width: 40, height: 40, borderRadius: 11, display: "grid", placeItems: "center", font: "700 15px/1 var(--font-mono)", background: "var(--s)", color: "#fff" }}>{number}</span>
           <div style={{ flex: 1 }}>
-            <div className="h3">{t(pos.labelKey as MessageKey)}</div>
+            <div className="h3">{title}</div>
             <div style={{ font: "500 11.5px/1.2 var(--font-sans)", color: "var(--muted)", marginTop: 3 }}>{t("report.tireDetails")}</div>
           </div>
           <button type="button" onClick={onClose} aria-label={t("app.close")} style={{ width: 38, height: 38, borderRadius: 11, border: "1.5px solid var(--hair)", background: "#fff", color: "var(--text-3)", font: "600 16px/1 var(--font-sans)" }}>✕</button>
@@ -203,8 +200,10 @@ function TireDetail({ tire, number, history, onClose }: { tire: ReportTire | nul
                 <p style={{ marginTop: 10, font: "500 13px/1.4 var(--font-sans)", color: "var(--text-2)" }}>
                   {tire.variant_label ?? [tire.tire_make, tire.tire_model, tire.tire_size].filter(Boolean).join(" · ")}
                   {tire.variant_label ? <span style={{ marginLeft: 6, font: "700 10px/1 var(--font-sans)", letterSpacing: ".08em", color: "var(--accent)" }}>{t("tire.catalog.selected").toUpperCase()}</span> : null}
+                  {tire.tire_code ? <span className="chip-mono" style={{ marginLeft: 6, background: "var(--hair-2)", color: "var(--ink)" }} title={t("tire.physicalId")}>{tire.tire_code}</span> : null}
                 </p>
               ) : null}
+              {tire.photo_required && tire.photos.length === 0 ? <p style={{ marginTop: 8, font: "600 12.5px/1.4 var(--font-sans)", color: "var(--st-crit)" }}>{t("report.photoMissing")}</p> : null}
               {tire.notes ? <p style={{ marginTop: 6, whiteSpace: "pre-wrap", font: "500 13px/1.4 var(--font-sans)" }}>{tire.notes}</p> : null}
               <div className="label" style={{ marginTop: 16 }}>{t("report.photos")}</div>
               {tire.photos.length === 0 ? (

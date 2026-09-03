@@ -5,6 +5,7 @@ import { Empty, fmtDate, KpiCard, PageHeader, Panel, StatusPill, Table, Td, Th }
 import { getServerTranslator } from "@/i18n/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { loadDashboard } from "@/lib/repos/admin/dashboard";
+import { assetBase } from "@/lib/equipment/paths";
 
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
   const session = await requireAdmin();
@@ -16,8 +17,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const k = data.kpis;
   const since = data.since;
   const compliancePct = k.driversActive ? Math.round((k.driversCompliant / k.driversActive) * 100) : 0;
-  const treadCells = data.positions.map((p) => ({ tire_number: p.tire_number, value: p.avg_tread, red: p.red, yellow: p.yellow, n: p.n }));
-  const psiCells = data.positions.map((p) => ({ tire_number: p.tire_number, value: p.avg_psi, red: p.red, yellow: p.yellow, n: p.n }));
+  const treadCells = data.positions.map((p) => ({ position_key: p.position_key, value: p.avg_tread, red: p.red, yellow: p.yellow, n: p.n }));
+  const psiCells = data.positions.map((p) => ({ position_key: p.position_key, value: p.avg_psi, red: p.red, yellow: p.yellow, n: p.n }));
 
   return (
     <>
@@ -107,13 +108,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
               </thead>
               <tbody>
                 {data.spares.map((s) => (
-                  <tr key={`${s.asset_id}-${s.tire_number}`}>
+                  <tr key={`${s.asset_id}-${s.position_key ?? s.tire_number}`}>
                     <Td>
-                      <Link className="text-accent" href={`/admin/${s.type === "truck" ? "trucks" : "trailers"}/${s.asset_id}`}>
+                      <Link className="text-accent" href={`${assetBase(s.type)}/${s.asset_id}`}>
                         {s.unit_number}
                       </Link>
                     </Td>
-                    <Td>#{s.tire_number}</Td>
+                    <Td>#{s.tire_number} · {s.position_key?.split("/")[1] ?? ""}</Td>
                     <Td right>{s.absent ? "—" : s.tread_32nds !== null ? `${s.tread_32nds}/32` : "—"}</Td>
                     <Td>{s.absent ? t("tire.noSpare") : <StatusPill status={s.overall_status as "green"}>{t(`tire.status.${s.overall_status as "green"}`)}</StatusPill>}</Td>
                     <Td>{fmtDate(s.submitted_at, locale, false)}</Td>

@@ -7,12 +7,13 @@ import { useT } from "@/i18n/client";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { signOutAction, switchTenantAction } from "@/app/admin/actions";
 
-const ITEMS: { href: string; key: "dashboard" | "tireCheck" | "reports" | "trucks" | "trailers" | "tires" | "drivers" | "tickets" | "integrations" | "settings"; exact?: boolean; count?: "reports" | "trucks" | "trailers" | "drivers" | "tickets" }[] = [
+const ITEMS: { href: string; key: "dashboard" | "tireCheck" | "reports" | "trucks" | "trailers" | "equipment" | "tires" | "drivers" | "tickets" | "integrations" | "settings"; exact?: boolean; count?: "reports" | "trucks" | "trailers" | "drivers" | "tickets" }[] = [
   { href: "/admin", key: "dashboard", exact: true },
   { href: "/admin/tire-check", key: "tireCheck" },
   { href: "/admin/reports", key: "reports", count: "reports" },
   { href: "/admin/trucks", key: "trucks", count: "trucks" },
   { href: "/admin/trailers", key: "trailers", count: "trailers" },
+  { href: "/admin/equipment", key: "equipment" },
   { href: "/admin/tires", key: "tires" },
   { href: "/admin/drivers", key: "drivers", count: "drivers" },
   { href: "/admin/tickets", key: "tickets", count: "tickets" },

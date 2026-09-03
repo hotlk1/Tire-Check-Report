@@ -1,13 +1,14 @@
 "use client";
 
 import { useT } from "@/i18n/client";
-import type { MessageKey } from "@/i18n";
-import { getPosition } from "@/lib/tires/layout";
-import type { AxleDefinition, InspectionEvaluation, TireReading } from "@/lib/tires/types";
+import type { InspectionLayout, LayoutAxle } from "@/lib/equipment/layout";
+import type { InspectionEvaluation, TireReading } from "@/lib/tires/types";
 import { TireNode } from "./TireNode";
 
 interface Props {
-  axle: AxleDefinition;
+  axle: LayoutAxle;
+  label: string;
+  layout: InspectionLayout;
   readings: Record<number, TireReading | undefined>;
   evaluation: InspectionEvaluation;
   selected?: number | null;
@@ -32,7 +33,7 @@ export function photoStateOf(r: TireReading | undefined, photoMissing: boolean):
  * chip, then left cells · beam · right cells. Duals carry a = / ≠ tread
  * match glyph between the outer and inner tire (design §1a).
  */
-export function AxleRow({ axle, readings, evaluation, selected, onSelect, showPos = true, size = "md" }: Props) {
+export function AxleRow({ axle, label, layout, readings, evaluation, selected, onSelect, showPos = true, size = "md" }: Props) {
   const t = useT();
   const cmp = evaluation.axles[axle.key];
   const psis = axle.tires.map((n) => readings[n]?.psi).filter((v): v is number => v !== null && v !== undefined);
@@ -41,7 +42,7 @@ export function AxleRow({ axle, readings, evaluation, selected, onSelect, showPo
   const diffStatus = cmp?.sideToSideStatus ?? "none";
 
   const node = (n: number) => {
-    const pos = getPosition(n);
+    const pos = layout.positions.find((p) => p.number === n)!;
     const ev = evaluation.tires[n];
     const r = readings[n];
     return (
@@ -83,7 +84,10 @@ export function AxleRow({ axle, readings, evaluation, selected, onSelect, showPo
   return (
     <div style={{ padding: "4px 2px 8px" }} data-axle={axle.key}>
       <div className="axle-label">
-        <span className="label-xs">{t(axle.labelKey as MessageKey)}</span>
+        <span className="label-xs">
+          {label}
+          {axle.liftable ? <span style={{ marginLeft: 6, opacity: 0.7 }}>· {t("equipment.liftable")}</span> : null}
+        </span>
         <span className="chip-mono" style={{ color: "var(--indigo)", background: "var(--indigo-soft)" }}>
           {avg === null ? t("design.avgNone") : t("design.avg", { v: avg })}
         </span>

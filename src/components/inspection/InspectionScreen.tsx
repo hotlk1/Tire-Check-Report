@@ -8,16 +8,19 @@ import type { MessageKey } from "@/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { AppHeader } from "@/components/driver/AppHeader";
 import { TireDiagram } from "@/components/tire/TireDiagram";
+import { axleLabel, componentName } from "@/lib/equipment/labels";
 import { TireSheet } from "@/components/tire/TireSheet";
+import { apiJson } from "@/lib/client/api";
 import { useOnline } from "@/lib/client/hooks";
-import { draftHasContent, emptyTire, isDraftExpired, newDraft, tireOf, toReadings, type DraftTire, type InspectionDraft } from "@/lib/inspection/draft";
+import { axleByKey, type InspectionLayout } from "@/lib/equipment/layout";
+import { applyEquipmentChange, draftHasContent, draftLayout, emptyTire, isCurrentDraft, isDraftExpired, newDraft, previewEquipmentChange, tireOf, toReadings, type DraftTire, type InspectionDraft } from "@/lib/inspection/draft";
 import { buildIssues, verdictOf } from "@/lib/inspection/issues";
 import { deleteDraft, deletePhoto, getDraft, listDraftsForDriver, listPhotosForDraft, pruneOldDrafts, saveDraft, savePhoto, type StoredPhoto } from "@/lib/offline/db";
 import { prepareImage } from "@/lib/offline/image";
 import { startOutboxWatcher, syncDraft } from "@/lib/offline/sync";
-import { evaluateInspection, getPosition, tiresForMode } from "@/lib/tires";
-import { AXLES } from "@/lib/tires/layout";
-import { EquipmentStep } from "./EquipmentStep";
+import { evaluateInspection } from "@/lib/tires";
+import { DEFAULT_THRESHOLDS, type ThresholdConfig } from "@/lib/tires/thresholds";
+import { EquipmentStep, type EquipmentSelection } from "./EquipmentStep";
 import { ResumePrompt } from "./ResumePrompt";
 
 export interface DriverContext {
@@ -32,7 +35,8 @@ type Phase = "loading" | "resume" | "equipment" | "inspect" | "review";
 /**
  * Driver flow (design §1a): resume/new → equipment → tire diagram → review &
  * submit → submitted. Every change autosaves to IndexedDB; submission goes
- * through the offline outbox.
+ * through the offline outbox. Equipment can be edited at any time; readings
+ * for equipment that stays are preserved.
  */
 export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const { t, locale } = useI18n();
@@ -47,7 +51,25 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<{ inspectionId: string | null; flagged: number } | null>(null);
   const [analyzing, setAnalyzing] = useState<number | null>(null);
+  const [pendingChange, setPendingChange] = useState<{ selection: EquipmentSelection; dropped: ReturnType<typeof previewEquipmentChange> } | null>(null);
+  const [highlightIssues, setHighlightIssues] = useState(false);
   const saveTimer = useRef<number | null>(null);
+  const issuesRef = useRef<HTMLDivElement>(null);
+
+  /** Tenant rules snapshot (thresholds + photo policy) so the client evaluates exactly like the server. */
+  const loadRules = useCallback(async (draftId: string) => {
+    try {
+      const data = await apiJson<{ rules: { id: string; version: number; config: ThresholdConfig } }>("/api/driver/rules");
+      setDraft((prev) => {
+        if (!prev || prev.id !== draftId) return prev;
+        const next = { ...prev, rules: data.rules };
+        saveDraft(next).catch(() => {});
+        return next;
+      });
+    } catch {
+      /* offline: system defaults until online */
+    }
+  }, []);
 
   // ---- load / resume --------------------------------------------------------
   useEffect(() => {
@@ -55,7 +77,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     (async () => {
       try {
         await pruneOldDrafts();
-        const drafts = await listDraftsForDriver(ctx.tenantSlug, ctx.driverId);
+        const drafts = (await listDraftsForDriver(ctx.tenantSlug, ctx.driverId)).filter(isCurrentDraft);
         const open = drafts
           .filter((d) => (d.status === "draft" || d.status === "queued" || d.status === "failed") && !isDraftExpired(d) && draftHasContent(d))
           .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -68,6 +90,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
           await saveDraft(d);
           setDraft(d);
           setPhase("equipment");
+          void loadRules(d.id);
         }
       } catch (e) {
         console.error("draft load failed", e);
@@ -79,7 +102,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     return () => {
       cancelled = true;
     };
-  }, [ctx]);
+  }, [ctx, loadRules]);
 
   useEffect(() => startOutboxWatcher(), []);
 
@@ -92,7 +115,8 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     if (!candidate) return;
     setDraft(candidate);
     await loadPhotos(candidate.id);
-    setPhase(candidate.mode && (candidate.truck || candidate.trailer) ? "inspect" : "equipment");
+    setPhase(candidate.components.some((c) => c.asset) ? "inspect" : "equipment");
+    if (!candidate.rules) void loadRules(candidate.id);
   };
   const startNew = async () => {
     if (candidate) await deleteDraft(candidate.id);
@@ -102,6 +126,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     setPhotos({});
     setSubmitted(null);
     setPhase("equipment");
+    void loadRules(d.id);
   };
 
   // ---- autosave ---------------------------------------------------------------
@@ -119,8 +144,8 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   }, []);
 
   const updateTire = useCallback(
-    (n: number, patch: Partial<DraftTire>) => {
-      update((d) => ({ tires: { ...d.tires, [n]: { ...tireOf(d, n), ...patch } } }));
+    (key: string, patch: Partial<DraftTire>) => {
+      update((d) => ({ tires: { ...d.tires, [key]: { ...tireOf(d, key), ...patch } } }));
     },
     [update],
   );
@@ -140,13 +165,27 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     );
   }, [update]);
 
-  const startInspection = () => {
+  // ---- equipment ---------------------------------------------------------------
+  const applySelection = (selection: EquipmentSelection) => {
+    if (!draft) return;
+    const changed = applyEquipmentChange(draft, selection.components);
+    const next = { ...changed.draft, odometer: selection.odometer, hubometer: selection.hubometer };
+    setDraft(next);
+    saveDraft(next).catch(() => {});
+    setPendingChange(null);
+    setSelected(null);
     setPhase("inspect");
-    if (draft && draft.locationState === "idle") captureLocation();
+    if (next.locationState === "idle") captureLocation();
+  };
+  const onApplyEquipment = (selection: EquipmentSelection) => {
+    if (!draft) return;
+    const dropped = previewEquipmentChange(draft, selection.components);
+    if (dropped.length) setPendingChange({ selection, dropped });
+    else applySelection(selection);
   };
 
   // ---- photos -----------------------------------------------------------------
-  const addPhotos = async (n: number, files: FileList) => {
+  const addPhotos = async (key: string, n: number, files: FileList) => {
     if (!draft) return;
     const ids: string[] = [];
     for (const file of Array.from(files)) {
@@ -161,12 +200,12 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
       }
     }
     if (ids.length) {
-      updateTire(n, { photoIds: [...tireOf(draft, n).photoIds, ...ids] });
-      void analyze(n, ids[ids.length - 1]);
+      updateTire(key, { photoIds: [...tireOf(draft, key).photoIds, ...ids] });
+      void analyze(key, n, ids[ids.length - 1]);
     }
   };
 
-  const analyze = async (n: number, photoId: string) => {
+  const analyze = async (key: string, n: number, photoId: string) => {
     if (!navigator.onLine || !draft) return;
     const photo = photos[photoId] ?? (await listPhotosForDraft(draft.id)).find((p) => p.id === photoId);
     if (!photo) return;
@@ -178,7 +217,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
       const res = await fetch("/api/ai/analyze-photo", { method: "POST", body: form });
       const data = (await res.json()) as { ok: boolean; available?: boolean; result?: { tread32: number | null; confidence: number | null; defects: string[]; quality: string; provider: string } | null };
       if (data.ok && data.available && data.result && data.result.tread32 !== null) {
-        updateTire(n, { aiSuggestion: { ...data.result, photoId } });
+        updateTire(key, { aiSuggestion: { ...data.result, photoId } });
       }
     } catch {
       /* assistive only */
@@ -187,7 +226,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     }
   };
 
-  const removePhoto = async (n: number, photoId: string) => {
+  const removePhoto = async (key: string, photoId: string) => {
     if (!draft) return;
     await deletePhoto(photoId);
     setPhotos((p) => {
@@ -195,29 +234,44 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
       delete next[photoId];
       return next;
     });
-    updateTire(n, { photoIds: tireOf(draft, n).photoIds.filter((id) => id !== photoId) });
+    updateTire(key, { photoIds: tireOf(draft, key).photoIds.filter((id) => id !== photoId) });
   };
 
   // ---- evaluation ----------------------------------------------------------------
-  const readings = useMemo(() => (draft ? toReadings(draft) : {}), [draft]);
-  const mode = draft?.mode ?? null;
-  const evaluation = useMemo(() => (mode ? evaluateInspection(mode, readings) : null), [mode, readings]);
-  const issues = useMemo(
-    () => (draft && mode ? buildIssues({ mode, readings, truckSelected: !!draft.truck, trailerSelected: !!draft.trailer, odometer: draft.odometer }) : []),
-    [draft, mode, readings],
-  );
+  const layout: InspectionLayout | null = useMemo(() => (draft ? draftLayout(draft) : null), [draft]);
+  const rules = draft?.rules?.config ?? DEFAULT_THRESHOLDS;
+  const readings = useMemo(() => (draft && layout ? toReadings(draft, layout) : {}), [draft, layout]);
+  const evaluation = useMemo(() => (layout ? evaluateInspection(layout, readings, rules) : null), [layout, readings, rules]);
+  const issues = useMemo(() => (draft && layout ? buildIssues({ layout, readings, odometer: draft.odometer, config: rules }) : []), [draft, layout, readings, rules]);
   const blocking = issues.filter((i) => i.blocking);
   const critical = issues.filter((i) => i.status === "red" && !i.blocking).length;
-  const total = evaluation?.summary.total ?? 0;
-  const done = evaluation?.summary.completed ?? 0;
-  const spareCount = mode ? tiresForMode(mode).filter((n) => getPosition(n).positionClass === "spare").length : 0;
-  const spareDone = mode ? tiresForMode(mode).filter((n) => getPosition(n).positionClass === "spare" && evaluation?.tires[n]?.complete).length : 0;
-  const progress = { done: done + spareDone, total: total + spareCount };
+  const progress = { done: evaluation?.summary.completed ?? 0, total: evaluation?.summary.total ?? 0 };
   const left = progress.total - progress.done;
+  const spares = { done: evaluation?.summary.sparesInspected ?? 0, total: evaluation?.summary.spares ?? 0 };
+
+  const openTire = (n: number) => {
+    if (!draft || !layout) return;
+    const pos = layout.positions.find((p) => p.number === n);
+    if (!pos) return;
+    const component = draft.components.find((c) => c.slot === pos.slot);
+    const localKey = pos.key.slice(pos.slot.length + 1);
+    const mounted = component?.mounted?.[localKey];
+    // First open of a position with a known mounted tire: carry its identity forward.
+    if (!draft.tires[pos.key] && mounted) {
+      updateTire(pos.key, { tireMake: mounted.tireMake ?? undefined, tireModel: mounted.tireModel ?? undefined, tireSize: mounted.tireSize ?? undefined, tireVariantId: mounted.tireVariantId, tireAssetId: mounted.tireAssetId });
+    }
+    setSelected(n);
+  };
 
   // ---- submit ---------------------------------------------------------------------
   const submit = async () => {
-    if (!draft || !draft.mode || blocking.length) return;
+    if (!draft || !layout) return;
+    if (blocking.length) {
+      setHighlightIssues(true);
+      issuesRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+      window.setTimeout(() => setHighlightIssues(false), 1600);
+      return;
+    }
     setSubmitting(true);
     setSubmitError(null);
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -262,15 +316,52 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     return shell(<div className="flex flex-1 items-center justify-center py-20" style={{ color: "var(--muted)" }}>{t("app.loading")}</div>);
   }
   if (phase === "resume" && candidate) return shell(<ResumePrompt draft={candidate} onResume={resume} onStartNew={startNew} />);
-  if (phase === "equipment") return shell(<EquipmentStep draft={draft} onChange={update} onStart={startInspection} onBack={signOut} />);
+  const hasReadings = Object.keys(draft.tires).length > 0;
+  if (phase === "equipment" || !layout || !evaluation) {
+    return shell(
+      <>
+        <EquipmentStep key={draft.id + String(hasReadings)} draft={draft} editing={hasReadings} onApply={onApplyEquipment} onCancel={hasReadings && layout ? () => setPhase("inspect") : signOut} />
+        {pendingChange ? (
+          <>
+            <div className="sheet-backdrop" onClick={() => setPendingChange(null)} aria-hidden />
+            <div className="sheet" role="dialog" aria-modal="true" style={{ maxHeight: "60vh" }} data-testid="equipment-confirm">
+              <div style={{ padding: 20 }}>
+                <div className="h3" style={{ fontSize: 17 }}>{t("equipment.changeWarnTitle")}</div>
+                <ul style={{ margin: "10px 0 0", paddingLeft: 18, font: "500 13.5px/1.6 var(--font-sans)", color: "var(--text-2)" }}>
+                  {pendingChange.dropped.map((d) => (
+                    <li key={d.slot}>{t("equipment.changeWarnItem", { count: d.count, unit: d.unitNumber ?? t(`equipment.kinds.${draft.components.find((c) => c.slot === d.slot)?.kind ?? "trailer"}` as MessageKey) })}</li>
+                  ))}
+                </ul>
+                <div style={{ display: "grid", gap: 8, marginTop: 18 }}>
+                  <button type="button" className="btn-primary" data-tone="ink" onClick={() => applySelection(pendingChange.selection)} data-testid="confirm-equipment-change">
+                    {t("equipment.changeWarnConfirm")}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setPendingChange(null)}>
+                    {t("app.cancel")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </>,
+    );
+  }
 
-  const labels = {
-    truck: draft.truck ? `${t("equipment.truck")} ${draft.truck.unitNumber}${draft.truck.label ? ` · ${draft.truck.label}` : ""}` : undefined,
-    trailer: draft.trailer ? `${t("equipment.trailer")} ${draft.trailer.unitNumber}${draft.trailer.label ? ` · ${draft.trailer.label}` : ""}` : undefined,
-  };
   const verdict = verdictOf(issues);
   const verdictInk = verdict === "action" ? "var(--st-crit)" : verdict === "watch" ? "var(--st-warn)" : "var(--st-ok)";
   const isReview = phase === "review";
+  const unitsLine = layout.components.map((c) => `${componentName(t, c)} ${c.unitNumber ?? ""}`.trim()).join(" · ");
+  const positionLabelOf = (n: number) => {
+    const pos = layout.positions.find((p) => p.number === n)!;
+    const component = layout.components.find((c) => c.slot === pos.slot)!;
+    const axle = axleByKey(layout, pos.axleKey);
+    const where = `${componentName(t, component)} ${component.unitNumber ?? ""}`.trim();
+    return axle ? `${axleLabel(t, component, axle)} · ${where}` : where;
+  };
+  const selectedPos = selected !== null ? layout.positions.find((p) => p.number === selected) : undefined;
+  const selectedComponent = selectedPos ? draft.components.find((c) => c.slot === selectedPos.slot) : undefined;
+  const selectedMounted = selectedPos && selectedComponent?.mounted ? selectedComponent.mounted[selectedPos.key.slice(selectedPos.slot.length + 1)] : undefined;
 
   return shell(
     <>
@@ -281,7 +372,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
               <div className="card" style={{ padding: "14px 16px", marginBottom: 12, borderRadius: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div className="h3">{[labels.truck, labels.trailer].filter(Boolean).map((l) => l!.split(" · ")[0]).join(" · ")}</div>
+                    <div className="h3">{unitsLine}</div>
                     <div style={{ font: "500 11.5px/1.3 var(--font-sans)", color: "var(--muted)", marginTop: 3 }}>
                       {ctx.driverName}
                       {draft.odometer !== null ? ` · Odo ${draft.odometer.toLocaleString(locale)} mi` : ""} · {new Date().toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" })}
@@ -294,28 +385,33 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
                 </div>
               </div>
             ) : (
-              <p style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", padding: "0 4px 10px" }}>{t("inspection.tapTire")}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "0 4px 10px" }}>
+                <p style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", margin: 0 }}>{t("inspection.tapTire")}</p>
+                <button type="button" className="a-link" style={{ flex: "none" }} onClick={() => setPhase("equipment")} data-testid="edit-equipment">
+                  {t("equipment.edit")}
+                </button>
+              </div>
             )}
-            <TireDiagram mode={mode!} readings={readings} evaluation={evaluation!} selected={selected} onSelect={isReview ? undefined : setSelected} labels={labels} />
+            <TireDiagram layout={layout} readings={readings} evaluation={evaluation} selected={selected} onSelect={isReview ? undefined : openTire} />
           </div>
 
           <aside>
             {isReview ? (
               <>
-                <div className="card" style={{ marginTop: 12, overflow: "hidden" }} data-testid="issues">
+                <div ref={issuesRef} className="card" style={{ marginTop: 12, overflow: "hidden", boxShadow: highlightIssues ? "0 0 0 3px var(--st-crit)" : undefined, transition: "box-shadow .3s" }} data-testid="issues">
                   <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "baseline", gap: 8 }}>
                     <span style={{ font: "700 13px/1 var(--font-sans)", color: "var(--ink)", letterSpacing: ".06em", textTransform: "uppercase" }}>{t("design.needsAttention")}</span>
                     <span className="chip-mono" style={{ color: "var(--st-crit)", background: "var(--st-crit-tint)", fontSize: 11 }}>{issues.length}</span>
                   </div>
+                  {blocking.length ? <div style={{ padding: "0 16px 10px", font: "600 12.5px/1.4 var(--font-sans)", color: "var(--st-crit)" }} data-testid="blocking-summary">{t("inspection.blockingSummary", { n: blocking.length })}</div> : null}
                   {issues.map((it, k) => {
-                    const pos = getPosition(it.tire);
-                    const axle = AXLES.find((a) => a.key === pos.axleKey);
+                    const pos = layout.positions.find((p) => p.number === it.tire)!;
                     return (
-                      <button key={k} type="button" onClick={() => { setPhase("inspect"); setSelected(it.tire); }} style={{ display: "flex", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--hair-2)", alignItems: "flex-start", width: "100%", textAlign: "left" }} data-status={it.status}>
+                      <button key={k} type="button" onClick={() => { setPhase("inspect"); openTire(it.tire); }} style={{ display: "flex", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--hair-2)", alignItems: "flex-start", width: "100%", textAlign: "left" }} data-status={it.status}>
                         <span style={{ flex: "none", width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", font: "700 12px/1 var(--font-mono)", background: "var(--s-soft)", color: "var(--s)" }}>{it.tire}</span>
                         <span style={{ flex: 1, minWidth: 0, display: "block" }}>
                           <span style={{ display: "block", font: "700 14px/1.2 var(--font-sans)", color: "var(--ink)" }}>
-                            {t("tire.title", { number: it.tire })} · {axle ? t(axle.labelKey as MessageKey) : ""} {pos.positionClass === "spare" ? "" : pos.abbreviation}
+                            {t("tire.title", { number: it.tire })} · {positionLabelOf(it.tire)} {pos.isSpare ? "" : pos.abbreviation}
                           </span>
                           <span style={{ display: "block", font: "500 12px/1.4 var(--font-sans)", color: "var(--text-3)", marginTop: 3 }}>{t(`design.issue.${it.textKey}`, it.params)}</span>
                         </span>
@@ -333,6 +429,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
               </>
             ) : (
               <div style={{ marginTop: 12, font: "500 12px/1.4 var(--font-sans)", color: "var(--muted)", padding: "0 4px" }}>
+                {spares.total ? <div>{t("inspection.sparesProgress", { done: spares.done, total: spares.total })}</div> : null}
                 {draft.locationState === "capturing" ? t("inspection.locationCapturing") : draft.locationState === "captured" ? "📍 " + t("inspection.locationCaptured") : draft.locationState === "denied" ? t("inspection.locationDenied") : ""}
               </div>
             )}
@@ -346,14 +443,14 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
             <button type="button" className="btn-secondary" style={{ width: 64 }} onClick={() => setPhase("inspect")}>
               {t("design.edit")}
             </button>
-            <button type="button" className="btn-primary" data-tone="ink" style={{ flex: 1 }} disabled={submitting || blocking.length > 0} onClick={submit} data-testid="submit">
-              {submitting ? t("inspection.submitting") : critical ? t("design.submitCritical", { n: critical }) : t("inspection.submit")}
+            <button type="button" className="btn-primary" data-tone="ink" style={{ flex: 1 }} disabled={submitting} data-blocking={blocking.length > 0} onClick={submit} data-testid="submit">
+              {submitting ? t("inspection.submitting") : blocking.length ? t("inspection.fixFirst", { n: blocking.length }) : critical ? t("design.submitCritical", { n: critical }) : t("inspection.submit")}
             </button>
           </>
         ) : (
           <>
-            <button type="button" className="btn-secondary" style={{ width: 64 }} onClick={() => setPhase("equipment")}>
-              {t("app.back")}
+            <button type="button" className="btn-secondary" style={{ width: 96 }} onClick={() => setPhase("equipment")} data-testid="equipment-back">
+              {t("equipment.editShort")}
             </button>
             <button type="button" className="btn-primary" data-tone={left > 0 ? "ink" : undefined} style={{ flex: 1 }} onClick={() => setPhase("review")} data-testid="review">
               {left > 0 ? t("design.reviewLeft", { n: left }) : t("design.reviewFull")}
@@ -362,16 +459,19 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
         )}
       </div>
 
-      {selected !== null && evaluation && !isReview ? (
+      {selected !== null && selectedPos && !isReview ? (
         <TireSheet
           key={selected}
-          tire={draft.tires[selected] ?? emptyTire(selected)}
-          evaluation={evaluation.tires[selected]}
-          photos={(draft.tires[selected]?.photoIds ?? []).map((id) => photos[id]).filter(Boolean)}
+          tire={draft.tires[selectedPos.key] ?? emptyTire(selectedPos.key)}
+          pos={selectedPos}
+          positionLabel={positionLabelOf(selected)}
+          config={rules}
+          mounted={selectedMounted ?? null}
+          photos={(draft.tires[selectedPos.key]?.photoIds ?? []).map((id) => photos[id]).filter(Boolean)}
           analyzing={analyzing === selected}
-          onChange={(patch) => updateTire(selected, patch)}
-          onAddPhotos={(files) => addPhotos(selected, files)}
-          onRemovePhoto={(id) => void removePhoto(selected, id)}
+          onChange={(patch) => updateTire(selectedPos.key, patch)}
+          onAddPhotos={(files) => addPhotos(selectedPos.key, selected, files)}
+          onRemovePhoto={(id) => void removePhoto(selectedPos.key, id)}
           onClose={() => setSelected(null)}
         />
       ) : null}

@@ -16,8 +16,8 @@ export interface DashboardData {
     driversCompliant: number;
   };
   weekly: { week: string; inspections: number; avgPsi: number | null; avgTread: number | null }[];
-  positions: { tire_number: number; avg_tread: number | null; avg_psi: number | null; red: number; yellow: number; n: number }[];
-  spares: { asset_id: string; unit_number: string; type: "truck" | "trailer"; tire_number: number; tread_32nds: number | null; overall_status: string; absent: boolean; submitted_at: string }[];
+  positions: { position_key: string; avg_tread: number | null; avg_psi: number | null; red: number; yellow: number; n: number }[];
+  spares: { asset_id: string; unit_number: string; type: string; tire_number: number; position_key: string | null; tread_32nds: number | null; overall_status: string; absent: boolean; submitted_at: string }[];
   recent: { id: string; submitted_at: string; driver_name: string | null; truck_unit: string | null; trailer_unit: string | null; red: number; yellow: number; damaged: number }[];
 }
 
@@ -47,16 +47,16 @@ export async function loadDashboard(scope: Scope & { tenantId: string }, opts: {
       where i.tenant_id = ${tid} and i.status = 'submitted' and i.submitted_at > now() - interval '12 weeks'
       group by 1 order by 1`;
     const positions = await tx<DashboardData["positions"]>`
-      select te.tire_number, round(avg(te.tread_32nds), 1)::float8 as avg_tread, round(avg(te.psi), 1)::float8 as avg_psi,
+      select te.position_key, round(avg(te.tread_32nds), 1)::float8 as avg_tread, round(avg(te.psi), 1)::float8 as avg_psi,
              count(*) filter (where te.overall_status = 'red')::int as red, count(*) filter (where te.overall_status = 'yellow')::int as yellow, count(*)::int as n
       from tire_entries te join inspections i on i.id = te.inspection_id
-      where te.tenant_id = ${tid} and i.status = 'submitted' and te.absent = false and i.submitted_at > now() - make_interval(days => ${periodDays})
-      group by te.tire_number order by te.tire_number`;
+      where te.tenant_id = ${tid} and i.status = 'submitted' and te.absent = false and te.position_key is not null and i.submitted_at > now() - make_interval(days => ${periodDays})
+      group by te.position_key order by te.position_key`;
     const spares = await tx<DashboardData["spares"]>`
-      select distinct on (te.asset_id, te.tire_number) te.asset_id, a.unit_number, a.type, te.tire_number, te.tread_32nds, te.overall_status, te.absent, i.submitted_at
+      select distinct on (te.asset_id, te.position_key) te.asset_id, a.unit_number, a.type::text as type, te.tire_number, te.position_key, te.tread_32nds, te.overall_status, te.absent, i.submitted_at
       from tire_entries te join inspections i on i.id = te.inspection_id join assets a on a.id = te.asset_id
-      where te.tenant_id = ${tid} and i.status = 'submitted' and te.tire_number in (19, 20) and a.status = 'active'
-      order by te.asset_id, te.tire_number, i.submitted_at desc`;
+      where te.tenant_id = ${tid} and i.status = 'submitted' and te.position_key like '%/spare-%' and a.status = 'active'
+      order by te.asset_id, te.position_key, i.submitted_at desc`;
     const recent = await tx<DashboardData["recent"]>`
       select i.id, i.submitted_at, d.full_name as driver_name, tr.unit_number as truck_unit, tl.unit_number as trailer_unit,
              coalesce((i.summary->>'red')::int, 0) as red, coalesce((i.summary->>'yellow')::int, 0) as yellow, coalesce((i.summary->>'damaged')::int, 0) as damaged

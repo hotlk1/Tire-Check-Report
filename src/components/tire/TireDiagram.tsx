@@ -1,19 +1,18 @@
 "use client";
 
 import { useT } from "@/i18n/client";
-import { axlesForMode, getPosition, SPARES, vehiclesForMode } from "@/lib/tires/layout";
-import type { InspectionEvaluation, InspectionMode, TireReading, VehicleKind } from "@/lib/tires/types";
+import { axleLabel, componentName } from "@/lib/equipment/labels";
+import type { InspectionLayout } from "@/lib/equipment/layout";
+import type { InspectionEvaluation, TireReading } from "@/lib/tires/types";
 import { AxleRow, photoStateOf } from "./AxleRow";
 import { TireNode } from "./TireNode";
 
 export interface TireDiagramProps {
-  mode: InspectionMode;
+  layout: InspectionLayout;
   readings: Record<number, TireReading | undefined>;
   evaluation: InspectionEvaluation;
   selected?: number | null;
   onSelect?: (n: number) => void;
-  /** Unit labels shown in the group header, e.g. "Truck 4182 · Cascadia". */
-  labels?: Partial<Record<VehicleKind, string>>;
   showPos?: boolean;
   size?: "sm" | "md" | "lg";
   hideSpares?: boolean;
@@ -21,68 +20,67 @@ export interface TireDiagramProps {
 }
 
 /**
- * Printed-axle-report layout rebuilt as touch cards (design §1a): TRACTOR,
- * TRAILER and SPARES groups, each a white card with axle rows.
+ * Printed-axle-report layout rebuilt as touch cards (design §1a): one card
+ * per component (tractor, jeep, trailer, dolly, booster) with axle rows,
+ * then a SPARES card, rendered from the inspection's layout snapshot.
  */
-export function TireDiagram({ mode, readings, evaluation, selected, onSelect, labels, showPos = true, size = "md", hideSpares, hideLegend }: TireDiagramProps) {
+export function TireDiagram({ layout, readings, evaluation, selected, onSelect, showPos = true, size = "md", hideSpares, hideLegend }: TireDiagramProps) {
   const t = useT();
-  const vehicles = vehiclesForMode(mode);
-  const axles = axlesForMode(mode);
+  const spares = layout.positions.filter((p) => p.isSpare);
 
   return (
     <div data-diagram>
-      {vehicles.map((vehicle) => (
-        <section key={vehicle} className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-vehicle={vehicle}>
+      {layout.components.map((c) => (
+        <section key={c.slot} className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-vehicle={c.slot} data-kind={c.kind}>
           <header className="group-head">
             <span className="dot" />
-            <span className="name">{t(vehicle === "truck" ? "design.tractor" : "equipment.trailer").toUpperCase()}</span>
+            <span className="name">{componentName(t, c).toUpperCase()}</span>
             <span className="rule" />
-            <span className="unit">{labels?.[vehicle] ?? ""}</span>
+            <span className="unit">{[c.unitNumber, c.label].filter(Boolean).join(" · ")}</span>
           </header>
-          {axles
-            .filter((a) => a.vehicle === vehicle)
-            .map((axle) => (
-              <AxleRow key={axle.key} axle={axle} readings={readings} evaluation={evaluation} selected={selected} onSelect={onSelect} showPos={showPos} size={size} />
-            ))}
+          {c.axles.map((axle) => (
+            <AxleRow key={axle.key} axle={axle} label={axleLabel(t, c, axle)} layout={layout} readings={readings} evaluation={evaluation} selected={selected} onSelect={onSelect} showPos={showPos} size={size} />
+          ))}
         </section>
       ))}
 
-      {!hideSpares ? (
+      {!hideSpares && spares.length ? (
         <section className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-spares>
           <header className="group-head">
             <span className="dot" />
             <span className="name">{t("inspection.spares").toUpperCase()}</span>
             <span className="rule" />
-            <span className="unit">{t("design.treadOnly")}</span>
+            <span className="unit">{t("inspection.spareOptional")} · {t("design.treadOnly")}</span>
           </header>
           <div style={{ padding: "4px 2px 8px" }}>
             <div className="axle-label">
               <span className="label-xs">{t("design.mountedSpares")}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-              {vehicles.map((v) => {
-                const n = SPARES[v];
-                const pos = getPosition(n);
-                const r = readings[n];
-                const ev = evaluation.tires[n];
+            <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+              {spares.map((pos, i) => {
+                const r = readings[pos.number];
+                const ev = evaluation.tires[pos.number];
+                const component = layout.components.find((c) => c.slot === pos.slot)!;
                 return (
-                  <TireNode
-                    key={n}
-                    number={n}
-                    abbreviation={v === "truck" ? "SP1" : "SP2"}
-                    status={ev?.overall ?? "none"}
-                    treadStatus={ev?.treadStatus ?? "none"}
-                    tread32={r?.tread32 ?? null}
-                    requiresPsi={pos.requiresPsi}
-                    isSpare
-                    absent={!!r?.absent}
-                    selected={selected === n}
-                    photoState={photoStateOf(r, !!ev?.photoMissing)}
-                    hasDamage={!!r && r.damage !== "none"}
-                    showPos={showPos}
-                    onSelect={onSelect}
-                    size={size}
-                  />
+                  <div key={pos.number} style={{ textAlign: "center" }}>
+                    <TireNode
+                      number={pos.number}
+                      abbreviation={`SP${i + 1}`}
+                      status={ev?.overall ?? "none"}
+                      treadStatus={ev?.treadStatus ?? "none"}
+                      tread32={r?.tread32 ?? null}
+                      requiresPsi={false}
+                      isSpare
+                      absent={!!r?.absent}
+                      selected={selected === pos.number}
+                      photoState={photoStateOf(r, !!ev?.photoMissing)}
+                      hasDamage={!!r && r.damage !== "none"}
+                      showPos={false}
+                      onSelect={onSelect}
+                      size={size}
+                    />
+                    {showPos ? <div className="tire-pos">{componentName(t, component)}</div> : null}
+                  </div>
                 );
               })}
             </div>
