@@ -115,3 +115,5 @@ is built from the specification and design tokens are isolated in
 `src/app/globals.css` so the palette, radii and tire diagram styling can be
 aligned to the design file in one place. Put the design files in `design/`
 when available.
+
+<!-- staging redeploy marker: 2026-09-03T00:15:18Z -->
