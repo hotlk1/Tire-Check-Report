@@ -41,6 +41,8 @@ export interface DraftComponent {
   config: EquipmentConfig | null;
   /** Mounted physical tires by position key (`axleKey:ABBR` without the slot prefix). */
   mounted?: Record<string, MountedTireInfo>;
+  /** Spare slots the driver added for this inspection. */
+  extraSpares?: number;
 }
 
 export interface DraftAiSuggestion {
@@ -68,6 +70,8 @@ export interface DraftTire {
   tireVariantId?: string | null;
   /** Physical tire pre-filled from the mounted record; cleared when the driver enters a different tire. */
   tireAssetId?: string | null;
+  /** Driver's answer when brand/model/size differ from the mounted tire. */
+  identityAction?: "replace" | "correct" | null;
   notes?: string;
   aiSuggestion?: DraftAiSuggestion | null;
   /** Driver confirmed an unusual reading (sanity warning acknowledged). */
@@ -185,6 +189,7 @@ export function draftLayout(draft: InspectionDraft): InspectionLayout | null {
       configurationId: c.configurationId,
       configVersion: c.configVersion,
       config: c.config ?? defaultConfigFor(c.kind),
+      extraSpares: c.extraSpares ?? 0,
     })),
   );
 }
@@ -275,6 +280,7 @@ export function toSubmission(draft: InspectionDraft, layout: InspectionLayout, c
       tireSize: t.tireSize?.trim() || null,
       tireVariantId: t.tireVariantId ?? null,
       tireAssetId: t.tireAssetId ?? null,
+      identityAction: t.identityAction ?? null,
       notes: t.notes?.trim() || null,
       photoClientIds: t.photoIds,
       aiSuggestion: t.aiSuggestion ?? null,
@@ -282,7 +288,7 @@ export function toSubmission(draft: InspectionDraft, layout: InspectionLayout, c
   return {
     schemaVersion: 2,
     clientDraftId: draft.id,
-    components: draft.components.filter((c) => c.asset).map((c) => ({ slot: c.slot, kind: c.kind, assetId: c.asset!.id, configurationId: c.configurationId })),
+    components: draft.components.filter((c) => c.asset).map((c) => ({ slot: c.slot, kind: c.kind, assetId: c.asset!.id, configurationId: c.configurationId, extraSpares: c.extraSpares ?? 0 })),
     odometer: draft.odometer,
     hubometer: draft.hubometer,
     startedAt: draft.startedAt,

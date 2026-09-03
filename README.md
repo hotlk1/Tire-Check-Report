@@ -121,7 +121,18 @@ driver to confirm.
 **Photo enforcement.** The phone names every missing input on Save and keeps the tire a
 draft; the server re-evaluates with the tenant's active rules and rejects a submission
 that lacks a required photo. A submission that claims a photo id is stored as
-`pending_photos` until the upload arrives, then becomes `submitted`.
+`pending_photos` until the upload arrives, then becomes `submitted`. System defaults
+(rules v3): photo mandatory for damage / OOS and when tread is under 3/32 on steer or
+5/32 elsewhere, independent of the colour thresholds; PSI has a high yellow band so a hot
+tire is a warning, not out of service (steer green 105–110, yellow to 125; others green
+100–105, yellow to 120).
+
+**Driver conveniences.** The equipment step shows who is inspecting ("Continuing as …",
+Change driver) and pre-selects the equipment used last time on that device (always shown,
+always changeable). A tire whose brand/model/size differs from the recorded one asks
+"Is this a different physical tire?" (replace vs correct the record). Spares are optional;
+the driver can add spare slots for one inspection. Feedback (1–5 + text) is stored in
+`driver_feedback` for later admin review.
 
 ## Deploying (Vercel + Supabase)
 

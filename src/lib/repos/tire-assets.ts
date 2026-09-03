@@ -8,7 +8,12 @@ import type { InspectionLayout } from "@/lib/equipment/layout";
  * the tire occupying it. Every mount/unmount/move/status change appends a
  * tire_mount_events row — history is never overwritten.
  */
-export type TireAssetState = "mounted" | "spare" | "unmounted" | "damaged" | "removed" | "disposed" | "lost";
+/**
+ * Lifecycle / location: mounted at a wheel position, spare on an asset, in
+ * storage (optional named location), unassigned (known but nowhere), damaged
+ * (pulled, awaiting decision), disposed, lost. `removed` is a legacy value.
+ */
+export type TireAssetState = "mounted" | "spare" | "storage" | "unassigned" | "damaged" | "removed" | "disposed" | "lost";
 
 export interface TireAssetRow {
   id: string;
@@ -24,6 +29,7 @@ export interface TireAssetRow {
   current_unit: string | null;
   current_asset_type: string | null;
   current_position_key: string | null;
+  storage_location: string | null;
   mounted_at: string | null;
   last_inspected_at: string | null;
   last_tread_32nds: number | null;
@@ -35,7 +41,7 @@ export interface TireAssetRow {
 const SELECT = (tx: Tx) => tx`
   select ta.id, ta.code, ta.state, ta.serial, ta.make, ta.model, ta.size, ta.tire_variant_id,
          case when v.id is null then null else b.name || ' ' || m.name || ' ' || v.size end as variant_label,
-         ta.current_asset_id, a.unit_number as current_unit, a.type::text as current_asset_type, ta.current_position_key, ta.mounted_at,
+         ta.current_asset_id, a.unit_number as current_unit, a.type::text as current_asset_type, ta.current_position_key, ta.storage_location, ta.mounted_at,
          ta.last_inspected_at, ta.last_tread_32nds, ta.last_psi::float8 as last_psi, ta.notes, ta.created_at
   from tire_assets ta
   left join assets a on a.id = ta.current_asset_id
@@ -50,7 +56,7 @@ export async function listTireAssets(scope: Scope & { tenantId: string }, opts: 
     const where = tx`ta.tenant_id = ${scope.tenantId}
       and (${state} = 'all' or ta.state::text = ${state})
       and (${opts.assetId ?? null}::uuid is null or ta.current_asset_id = ${opts.assetId ?? null})
-      and (${q} = '' or ta.code ilike ${"%" + q + "%"} or ta.serial ilike ${"%" + q + "%"} or ta.make ilike ${"%" + q + "%"} or ta.model ilike ${"%" + q + "%"} or ta.size ilike ${"%" + q + "%"})`;
+      and (${q} = '' or ta.code ilike ${"%" + q + "%"} or ta.serial ilike ${"%" + q + "%"} or ta.make ilike ${"%" + q + "%"} or ta.model ilike ${"%" + q + "%"} or ta.size ilike ${"%" + q + "%"} or ta.storage_location ilike ${"%" + q + "%"})`;
     const [{ count }] = await tx<{ count: number }[]>`select count(*)::int as count from tire_assets ta where ${where}`;
     const rows = await tx<TireAssetRow[]>`${SELECT(tx)} where ${where} order by (ta.state in ('mounted','spare')) desc, a.unit_number, ta.current_position_key, ta.code limit ${size} offset ${(page - 1) * size}`;
     return { rows, total: count };
@@ -132,7 +138,7 @@ export function sameTireIdentity(mounted: { tire_variant_id: string | null; make
 export interface ReconcileInput {
   inspectionId: string;
   layout: InspectionLayout;
-  tires: { key: string; number: number; tireVariantId: string | null; tireMake: string | null; tireModel: string | null; tireSize: string | null; tireAssetId: string | null; tread32: number | null; psi: number | null; damage: "none" | "repairable" | "non_repairable" }[];
+  tires: { key: string; number: number; tireVariantId: string | null; tireMake: string | null; tireModel: string | null; tireSize: string | null; tireAssetId: string | null; identityAction?: "replace" | "correct" | null; tread32: number | null; psi: number | null; damage: "none" | "repairable" | "non_repairable" }[];
   actor: { driverId?: string | null; userId?: string | null; label: string };
   variantIds: Set<string>;
 }
@@ -141,7 +147,9 @@ export interface ReconcileInput {
  * Reconciles physical tire identity for every inspected position:
  *  - nothing mounted, identity entered → create a TireAsset and mount it
  *  - mounted tire, matching (or no) identity → keep it (make/model carry forward)
- *  - mounted tire, different identity → replace: old → unmounted, new → mounted
+ *  - mounted tire, different identity:
+ *      · driver answered "different tire" (replace, the default) → old → unassigned, new → mounted
+ *      · driver answered "correct the information" (correct) → update the tire's metadata, keep history
  * Returns the TireAsset id per position key so tire entries can link to it.
  */
 export async function reconcileTireIdentity(tx: Tx, tenantId: string, input: ReconcileInput): Promise<Record<string, string>> {
@@ -165,11 +173,19 @@ export async function reconcileTireIdentity(tx: Tx, tenantId: string, input: Rec
     if (mounted && sameTireIdentity(mounted, { ...t, tireVariantId: variantId })) {
       tireId = mounted.id;
       await tx`update tire_assets set last_inspected_at = now(), last_tread_32nds = ${t.tread32}, last_psi = ${t.psi} where id = ${tireId}`;
+    } else if (mounted && t.identityAction === "correct") {
+      // Same physical tire, corrected information: metadata changes, history records the correction.
+      tireId = mounted.id;
+      await tx`update tire_assets set make = ${t.tireMake}, model = ${t.tireModel}, size = ${t.tireSize}, tire_variant_id = ${variantId}, last_inspected_at = now(), last_tread_32nds = ${t.tread32}, last_psi = ${t.psi} where id = ${tireId}`;
+      await tx`insert into tire_mount_events (tenant_id, tire_asset_id, event_type, asset_id, position_key, from_state, to_state, inspection_id, actor_driver_id, actor_user_id, actor_label, note)
+               values (${tenantId}, ${tireId}, 'correction', ${assetId}, ${localKey}, ${state}, ${state}, ${input.inspectionId}, ${actorCols.driver}, ${actorCols.user}, ${actorCols.label},
+                       ${`Corrected from ${[mounted.make, mounted.model, mounted.size].filter(Boolean).join(" ") || "—"} to ${[t.tireMake, t.tireModel, t.tireSize].filter(Boolean).join(" ") || "—"}`})`;
+      byAsset.get(assetId)!.set(localKey, { id: tireId, tire_variant_id: variantId, make: t.tireMake, model: t.tireModel, size: t.tireSize });
     } else if (mounted || identityGiven) {
       if (mounted) {
-        await tx`update tire_assets set state = 'unmounted', current_asset_id = null, current_position_key = null where id = ${mounted.id}`;
+        await tx`update tire_assets set state = 'unassigned', current_asset_id = null, current_position_key = null where id = ${mounted.id}`;
         await tx`insert into tire_mount_events (tenant_id, tire_asset_id, event_type, from_asset_id, from_position_key, from_state, to_state, inspection_id, actor_driver_id, actor_user_id, actor_label, note)
-                 values (${tenantId}, ${mounted.id}, 'replace', ${assetId}, ${localKey}, ${mounted ? state : null}, 'unmounted', ${input.inspectionId}, ${actorCols.driver}, ${actorCols.user}, ${actorCols.label}, 'Different tire reported at this position during inspection')`;
+                 values (${tenantId}, ${mounted.id}, 'replace', ${assetId}, ${localKey}, ${mounted ? state : null}, 'unassigned', ${input.inspectionId}, ${actorCols.driver}, ${actorCols.user}, ${actorCols.label}, 'Different tire reported at this position during inspection')`;
       }
       const [created] = await tx<{ id: string }[]>`insert into tire_assets (tenant_id, make, model, size, tire_variant_id, state, current_asset_id, current_position_key, mounted_at, last_inspected_at, last_tread_32nds, last_psi)
         values (${tenantId}, ${t.tireMake}, ${t.tireModel}, ${t.tireSize}, ${variantId}, ${state}, ${assetId}, ${localKey}, now(), now(), ${t.tread32}, ${t.psi}) returning id`;
@@ -201,7 +217,7 @@ async function loadForUpdate(tx: Tx, tenantId: string, id: string) {
   return row;
 }
 
-async function event(tx: Tx, tenantId: string, scope: AdminScope, actorLabel: string, e: { tireId: string; type: "mount" | "unmount" | "move" | "replace" | "status"; assetId?: string | null; positionKey?: string | null; fromAssetId?: string | null; fromPositionKey?: string | null; fromState?: TireAssetState | null; toState?: TireAssetState | null; note?: string | null }) {
+async function event(tx: Tx, tenantId: string, scope: AdminScope, actorLabel: string, e: { tireId: string; type: "mount" | "unmount" | "move" | "replace" | "status" | "correction"; assetId?: string | null; positionKey?: string | null; fromAssetId?: string | null; fromPositionKey?: string | null; fromState?: TireAssetState | null; toState?: TireAssetState | null; note?: string | null }) {
   await tx`insert into tire_mount_events (tenant_id, tire_asset_id, event_type, asset_id, position_key, from_asset_id, from_position_key, from_state, to_state, actor_user_id, actor_label, note)
            values (${tenantId}, ${e.tireId}, ${e.type}, ${e.assetId ?? null}, ${e.positionKey ?? null}, ${e.fromAssetId ?? null}, ${e.fromPositionKey ?? null}, ${e.fromState ?? null}, ${e.toState ?? null}, ${scope.userId}, ${actorLabel}, ${e.note ?? null})`;
 }
@@ -209,8 +225,8 @@ async function event(tx: Tx, tenantId: string, scope: AdminScope, actorLabel: st
 async function vacate(tx: Tx, tenantId: string, scope: AdminScope, actorLabel: string, assetId: string, positionKey: string, note: string) {
   const [occupant] = await tx<{ id: string; state: TireAssetState }[]>`select id, state from tire_assets where current_asset_id = ${assetId} and current_position_key = ${positionKey} and state in ('mounted', 'spare') for update`;
   if (!occupant) return null;
-  await tx`update tire_assets set state = 'unmounted', current_asset_id = null, current_position_key = null where id = ${occupant.id}`;
-  await event(tx, tenantId, scope, actorLabel, { tireId: occupant.id, type: "unmount", fromAssetId: assetId, fromPositionKey: positionKey, fromState: occupant.state, toState: "unmounted", note });
+  await tx`update tire_assets set state = 'unassigned', current_asset_id = null, current_position_key = null where id = ${occupant.id}`;
+  await event(tx, tenantId, scope, actorLabel, { tireId: occupant.id, type: "unmount", fromAssetId: assetId, fromPositionKey: positionKey, fromState: occupant.state, toState: "unassigned", note });
   return occupant.id;
 }
 
@@ -222,21 +238,35 @@ export async function mountTire(scope: AdminScope, input: { tireId: string; asse
     if (!asset) throw new Error("asset_not_found");
     const displaced = await vacate(tx, scope.tenantId, scope, actorLabel, input.assetId, input.positionKey, `Displaced by ${tire.code}`);
     const toState: TireAssetState = input.isSpare ? "spare" : "mounted";
-    await tx`update tire_assets set state = ${toState}, current_asset_id = ${input.assetId}, current_position_key = ${input.positionKey}, mounted_at = now(), retired_at = null where id = ${tire.id}`;
+    await tx`update tire_assets set state = ${toState}, current_asset_id = ${input.assetId}, current_position_key = ${input.positionKey}, storage_location = null, mounted_at = now(), retired_at = null where id = ${tire.id}`;
     await event(tx, scope.tenantId, scope, actorLabel, { tireId: tire.id, type: tire.current_asset_id ? "move" : "mount", assetId: input.assetId, positionKey: input.positionKey, fromAssetId: tire.current_asset_id, fromPositionKey: tire.current_position_key, fromState: tire.state, toState, note: input.note ?? null });
     await audit(tx, { tenantId: scope.tenantId, actorUserId: scope.userId, actorLabel, action: "update", entityType: "tire_asset", entityId: tire.id, oldValue: { state: tire.state, asset_id: tire.current_asset_id, position: tire.current_position_key }, newValue: { state: toState, asset_id: input.assetId, position: input.positionKey, displaced } });
   });
 }
 
-/** Removes a tire from its position with a target state (unmounted / removed / damaged / disposed / lost). */
-export async function setTireState(scope: AdminScope, input: { tireId: string; state: TireAssetState; note?: string | null }, actorLabel: string) {
+/** Moves a tire off its position into storage (optional named location), unassigned, damaged, disposed or lost. */
+export async function setTireState(scope: AdminScope, input: { tireId: string; state: TireAssetState; storageLocation?: string | null; note?: string | null }, actorLabel: string) {
   if (input.state === "mounted" || input.state === "spare") throw new Error("use mountTire");
   return withScope(scope, async (tx) => {
     const tire = await loadForUpdate(tx, scope.tenantId, input.tireId);
     const retired = input.state === "disposed" || input.state === "lost" || input.state === "removed";
-    await tx`update tire_assets set state = ${input.state}, current_asset_id = null, current_position_key = null, retired_at = ${retired ? tx`now()` : null}, notes = coalesce(${input.note ?? null}, notes) where id = ${tire.id}`;
-    await event(tx, scope.tenantId, scope, actorLabel, { tireId: tire.id, type: tire.current_asset_id ? "unmount" : "status", fromAssetId: tire.current_asset_id, fromPositionKey: tire.current_position_key, fromState: tire.state, toState: input.state, note: input.note ?? null });
-    await audit(tx, { tenantId: scope.tenantId, actorUserId: scope.userId, actorLabel, action: "update", entityType: "tire_asset", entityId: tire.id, oldValue: { state: tire.state, asset_id: tire.current_asset_id, position: tire.current_position_key }, newValue: { state: input.state, note: input.note ?? null } });
+    const location = input.state === "storage" ? input.storageLocation?.trim() || null : null;
+    await tx`update tire_assets set state = ${input.state}, current_asset_id = null, current_position_key = null, storage_location = ${location}, retired_at = ${retired ? tx`now()` : null}, notes = coalesce(${input.note ?? null}, notes) where id = ${tire.id}`;
+    const note = [location ? `Storage: ${location}` : null, input.note ?? null].filter(Boolean).join(" · ") || null;
+    await event(tx, scope.tenantId, scope, actorLabel, { tireId: tire.id, type: tire.current_asset_id ? "unmount" : "status", fromAssetId: tire.current_asset_id, fromPositionKey: tire.current_position_key, fromState: tire.state, toState: input.state, note });
+    await audit(tx, { tenantId: scope.tenantId, actorUserId: scope.userId, actorLabel, action: "update", entityType: "tire_asset", entityId: tire.id, oldValue: { state: tire.state, asset_id: tire.current_asset_id, position: tire.current_position_key }, newValue: { state: input.state, storage_location: location, note: input.note ?? null } });
+  });
+}
+
+/** Corrects a tire's identity data (brand/model/size/serial) without touching its location; history records the change. */
+export async function correctTire(scope: AdminScope, input: { tireId: string; make: string | null; model: string | null; size: string | null; serial: string | null; tireVariantId: string | null }, actorLabel: string) {
+  return withScope(scope, async (tx) => {
+    const [before] = await tx<{ make: string | null; model: string | null; size: string | null; serial: string | null; tire_variant_id: string | null; state: TireAssetState; current_asset_id: string | null; current_position_key: string | null }[]>`
+      select make, model, size, serial, tire_variant_id, state, current_asset_id, current_position_key from tire_assets where id = ${input.tireId} and tenant_id = ${scope.tenantId} for update`;
+    if (!before) throw new Error("not_found");
+    await tx`update tire_assets set make = ${input.make}, model = ${input.model}, size = ${input.size}, serial = ${input.serial}, tire_variant_id = ${input.tireVariantId} where id = ${input.tireId}`;
+    await event(tx, scope.tenantId, scope, actorLabel, { tireId: input.tireId, type: "correction", assetId: before.current_asset_id, positionKey: before.current_position_key, fromState: before.state, toState: before.state, note: `Corrected from ${[before.make, before.model, before.size].filter(Boolean).join(" ") || "—"} to ${[input.make, input.model, input.size].filter(Boolean).join(" ") || "—"}` });
+    await audit(tx, { tenantId: scope.tenantId, actorUserId: scope.userId, actorLabel, action: "update", entityType: "tire_asset", entityId: input.tireId, oldValue: { make: before.make, model: before.model, size: before.size, serial: before.serial }, newValue: { make: input.make, model: input.model, size: input.size, serial: input.serial } });
   });
 }
 
@@ -261,11 +291,12 @@ export async function replaceTire(scope: AdminScope, input: { assetId: string; p
 }
 
 /** Registers a physical tire that is not mounted anywhere (stock / spare inventory). */
-export async function createUnmountedTire(scope: AdminScope, tire: { make: string | null; model: string | null; size: string | null; tireVariantId: string | null; serial: string | null; notes: string | null }, actorLabel: string) {
+export async function createUnmountedTire(scope: AdminScope, tire: { make: string | null; model: string | null; size: string | null; tireVariantId: string | null; serial: string | null; notes: string | null; storageLocation?: string | null }, actorLabel: string) {
   return withScope(scope, async (tx) => {
-    const [created] = await tx<{ id: string; code: string }[]>`insert into tire_assets (tenant_id, make, model, size, tire_variant_id, serial, notes, state)
-      values (${scope.tenantId}, ${tire.make}, ${tire.model}, ${tire.size}, ${tire.tireVariantId}, ${tire.serial}, ${tire.notes}, 'unmounted') returning id, code`;
-    await event(tx, scope.tenantId, scope, actorLabel, { tireId: created.id, type: "status", toState: "unmounted", note: "Registered" });
+    const state: TireAssetState = tire.storageLocation ? "storage" : "unassigned";
+    const [created] = await tx<{ id: string; code: string }[]>`insert into tire_assets (tenant_id, make, model, size, tire_variant_id, serial, notes, state, storage_location)
+      values (${scope.tenantId}, ${tire.make}, ${tire.model}, ${tire.size}, ${tire.tireVariantId}, ${tire.serial}, ${tire.notes}, ${state}, ${tire.storageLocation ?? null}) returning id, code`;
+    await event(tx, scope.tenantId, scope, actorLabel, { tireId: created.id, type: "status", toState: state, note: tire.storageLocation ? `Registered · Storage: ${tire.storageLocation}` : "Registered" });
     await audit(tx, { tenantId: scope.tenantId, actorUserId: scope.userId, actorLabel, action: "create", entityType: "tire_asset", entityId: created.id, newValue: { code: created.code, ...tire } });
     return created;
   });

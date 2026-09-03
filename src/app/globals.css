@@ -228,7 +228,24 @@ input, button, select, textarea { font: inherit; }
 .tire .dmg { font: 700 9px/1 var(--font-sans); color: var(--st-crit); letter-spacing: 0.04em; }
 .tire[data-absent="true"] { border-style: dashed; border-color: var(--field); background: var(--soft); box-shadow: none; }
 .tire-pos { text-align: center; font: 700 9.5px/1 var(--font-sans); color: var(--muted-2); letter-spacing: 0.1em; margin-top: 4px; }
-.match-glyph { width: 13px; align-self: center; text-align: center; padding-bottom: 14px; font: 700 16px/1 var(--font-sans); }
+/* Axle drawn as a beam with the tires sitting on it (design §1a, refined) */
+.axle { padding: 2px 0 0; }
+.axle + .axle { margin-top: 10px; }
+.axle-head { display: flex; align-items: center; gap: 6px; padding: 0 4px 4px; }
+.axle-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 0 2px; }
+.axle-beam { position: absolute; left: 10px; right: 10px; top: 50%; height: 8px; margin-top: -11px; background: var(--field); border-radius: 4px; display: flex; align-items: center; justify-content: center; z-index: 0; }
+.axle-beam .hub { width: 20px; height: 20px; border-radius: 50%; border: 4px solid var(--field); background: var(--card); box-shadow: 0 0 0 2px var(--card); }
+.axle-side { position: relative; z-index: 1; display: flex; align-items: flex-start; gap: 2px; }
+.axle-mid { position: relative; z-index: 1; flex: 1 1 0; min-width: 0; display: flex; justify-content: center; align-self: flex-start; margin-top: 38px; }
+.axle-diff { box-shadow: 0 0 0 3px var(--card); color: var(--s); background: var(--s-soft); }
+.axle-diff[data-status="green"] { color: var(--text-3); background: var(--hair-2); }
+.axle-diff[data-status="none"] { color: var(--muted); background: var(--hair-2); }
+.match-glyph { position: relative; z-index: 1; width: 16px; height: 16px; margin-top: 43px; border-radius: 50%; display: grid; place-items: center; background: var(--card); box-shadow: 0 0 0 2px var(--card); font: 700 12px/1 var(--font-sans); color: var(--muted-2); }
+.match-glyph[data-match="yes"] { color: var(--st-ok); }
+.match-glyph[data-match="no"] { color: var(--st-crit); }
+/* Component groups: a clear break between tractor, trailer, jeep… */
+.component-card + .component-card { margin-top: 22px; }
+.spares-card { border-style: dashed; background: var(--soft); box-shadow: none; }
 .beam { flex: 1 1 0; min-width: 0; align-self: center; padding-bottom: 14px; display: flex; align-items: center; }
 .beam span:first-child, .beam span:last-child { flex: 1; height: 6px; background: var(--field); border-radius: 3px; }
 .beam .hub { width: 18px; height: 18px; border-radius: 50%; border: 4px solid var(--field); background: var(--bg); margin: 0 -1px; flex: none; }

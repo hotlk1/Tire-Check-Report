@@ -48,6 +48,7 @@ const ISSUE_KEY: Record<TireSaveIssue["code"], MessageKey> = {
   tread_required: "tire.validation.treadRequired",
   photo_required_damaged: "tire.validation.photoRequiredDamaged",
   photo_required_oos: "tire.validation.photoRequiredOos",
+  photo_required_tread_threshold: "tire.validation.photoRequiredTreadThreshold",
   photo_required_tread: "tire.validation.photoRequiredTread",
   photo_required_psi: "tire.validation.photoRequiredPsi",
   psi_out_of_range: "tire.validation.psiOutOfRange",
@@ -75,6 +76,8 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
   const [busy, setBusy] = useState(false);
   const [issues, setIssues] = useState<TireSaveIssue[] | null>(null);
   const [warnings, setWarnings] = useState<SanityWarning[] | null>(null);
+  /** Pending brand/model/size change that differs from the mounted tire; the driver must say replace or correct. */
+  const [identityPending, setIdentityPending] = useState<{ tireVariantId: string | null; tireMake: string; tireModel: string; tireSize: string } | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLButtonElement>(null);
@@ -90,6 +93,8 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
   const reading = { key: pos.key, number: pos.number, psi: psiV, tread32: treadV, damage: tire.damage, photoCount: photos.length };
   const live = evaluateTire(reading, pos, config);
   const needPhoto = live.photoMissing;
+  const photoThreshold = config.photoPolicy.treadBelow32[pos.positionClass];
+  const photoReasonText = live.photoReason === "oos" ? t("design.sheet.photoReqOos") : live.photoReason === "damaged" ? t("design.sheet.photoReqDamaged") : live.photoReason === "tread_threshold" ? t("tire.validation.photoRequiredTreadThreshold", { v: photoThreshold ?? "" }) : live.photoReason === "tread_status" ? t("design.sheet.photoReqLow") : t("design.sheet.photoReqPsi");
 
   const commit = () => onChange({ psi: psiV, tread32: treadV });
   const closeAsDraft = () => {
@@ -221,7 +226,7 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
               <div style={{ font: "700 12.5px/1.4 var(--font-sans)" }}>{t("tire.validation.title")}</div>
               <ul style={{ margin: "4px 0 0", paddingLeft: 18, font: "500 12.5px/1.5 var(--font-sans)" }}>
                 {issues.map((i) => (
-                  <li key={i.code}>{t(ISSUE_KEY[i.code], { min: i.field === "psi" ? INPUT_LIMITS.psi.min : INPUT_LIMITS.tread32.min, max: i.field === "psi" ? INPUT_LIMITS.psi.max : INPUT_LIMITS.tread32.max })}</li>
+                  <li key={i.code}>{t(ISSUE_KEY[i.code], { min: i.field === "psi" ? INPUT_LIMITS.psi.min : INPUT_LIMITS.tread32.min, max: i.field === "psi" ? INPUT_LIMITS.psi.max : INPUT_LIMITS.tread32.max, v: photoThreshold ?? "" })}</li>
                 ))}
               </ul>
             </div>
@@ -267,11 +272,19 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
             <div className="notice" data-status="red" style={{ marginTop: 10 }} data-testid="photo-required">
               <span className="bang">!</span>
               <div style={{ flex: 1, font: "600 12.5px/1.4 var(--font-sans)" }}>
-                {tire.damage === "non_repairable" ? t("design.sheet.photoReqOos") : tire.damage !== "none" ? t("design.sheet.photoReqDamaged") : ts === "yellow" || ts === "red" ? t("design.sheet.photoReqLow") : t("design.sheet.photoReqPsi")}
+                {photoReasonText}
                 <span style={{ display: "block", fontWeight: 500, color: "var(--text-3)", marginTop: 3 }}>{t("design.sheet.photoSuggest")}</span>
               </div>
             </div>
           ) : null}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button type="button" className="toggle-btn" disabled={busy} onClick={() => cameraRef.current?.click()} data-testid="photo-camera">
+              📷 {t("tire.photo.camera")}
+            </button>
+            <button type="button" className="toggle-btn" disabled={busy} onClick={() => fileRef.current?.click()} data-testid="photo-gallery">
+              🖼 {t("tire.photo.gallery")}
+            </button>
+          </div>
 
           {tire.damage !== "none" ? (
             <div style={{ marginTop: 12 }}>
@@ -301,16 +314,10 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
               ))}
               <div style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--text-3)", flex: "none" }}>
                 {t("design.sheet.photosAttached", { n: photos.length })}
-                <button type="button" className="a-link" style={{ display: "block", marginTop: 2 }} onClick={() => fileRef.current?.click()}>
-                  + {t("design.sheet.gallery")}
-                </button>
+                <span style={{ display: "block", marginTop: 2 }}>{t("tire.photo.multiple")}</span>
               </div>
             </div>
-          ) : (
-            <button type="button" className="a-link" style={{ marginTop: 8, display: "block" }} onClick={() => fileRef.current?.click()}>
-              {t("design.sheet.gallery")}
-            </button>
-          )}
+          ) : null}
 
           <button type="button" className="dashed-btn" style={{ marginTop: 14 }} data-testid="details-toggle" onClick={() => setDetailsOpen((o) => !o)}>
             {detailsOpen ? t("design.sheet.detailsHide") : mountedLabel ? t("design.sheet.detailsChange") : t("design.sheet.detailsAdd")}
@@ -321,13 +328,37 @@ export function TireSheet({ tire, pos, positionLabel, config, mounted, photos, a
                 <CatalogPicker
                   value={{ tireVariantId: tire.tireVariantId ?? null, tireMake: tire.tireMake, tireModel: tire.tireModel, tireSize: tire.tireSize }}
                   onChange={(sel) => {
-                    // A different tire than the mounted one means the physical tire changed: drop the carried identity.
                     const same = mounted && ((sel.tireVariantId && sel.tireVariantId === mounted.tireVariantId) || (!sel.tireVariantId && !mounted.tireVariantId && (sel.tireMake ?? "") === (mounted.tireMake ?? "") && (sel.tireModel ?? "") === (mounted.tireModel ?? "") && (sel.tireSize ?? "") === (mounted.tireSize ?? "")));
-                    onChange({ tireVariantId: sel.tireVariantId, tireMake: sel.tireMake, tireModel: sel.tireModel, tireSize: sel.tireSize, tireAssetId: same ? mounted!.tireAssetId : null, confirmedUnusual: false });
+                    const cleared = !sel.tireVariantId && !sel.tireMake && !sel.tireModel && !sel.tireSize;
+                    if (mounted && !same && !cleared && !tire.identityAction) {
+                      // Different data than the tire recorded here: ask whether the physical tire changed before deciding.
+                      setIdentityPending({ tireVariantId: sel.tireVariantId, tireMake: sel.tireMake ?? "", tireModel: sel.tireModel ?? "", tireSize: sel.tireSize ?? "" });
+                      onChange({ tireVariantId: sel.tireVariantId, tireMake: sel.tireMake, tireModel: sel.tireModel, tireSize: sel.tireSize, confirmedUnusual: false });
+                      return;
+                    }
+                    onChange({ tireVariantId: sel.tireVariantId, tireMake: sel.tireMake, tireModel: sel.tireModel, tireSize: sel.tireSize, tireAssetId: same || tire.identityAction === "correct" ? mounted!.tireAssetId : null, identityAction: same ? null : tire.identityAction ?? null, confirmedUnusual: false });
                   }}
                   online={typeof navigator === "undefined" ? true : navigator.onLine}
                 />
               </div>
+              {identityPending || (tire.identityAction && mounted) ? (
+                <div style={{ gridColumn: "span 2" }} className="notice" data-status={identityPending ? "yellow" : "none"} data-testid="identity-prompt">
+                  <div style={{ flex: 1 }}>
+                    {identityPending ? (
+                      <>
+                        <div style={{ font: "700 12.5px/1.4 var(--font-sans)" }}>{t("tire.identity.question")}</div>
+                        <div style={{ font: "500 12px/1.4 var(--font-sans)", color: "var(--text-3)", marginTop: 2 }}>{t("tire.identity.hint", { label: mountedLabel || "—" })}</div>
+                        <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+                          <button type="button" className="chip-btn" data-active onClick={() => { onChange({ ...identityPending, tireAssetId: null, identityAction: "replace" }); setIdentityPending(null); }} data-testid="identity-replace">{t("tire.identity.replaced")}</button>
+                          <button type="button" className="chip-btn" onClick={() => { onChange({ ...identityPending, tireAssetId: mounted!.tireAssetId, identityAction: "correct" }); setIdentityPending(null); }} data-testid="identity-correct">{t("tire.identity.corrected")}</button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ font: "600 12px/1.4 var(--font-sans)", color: "var(--text-2)" }}>{tire.identityAction === "replace" ? t("tire.identity.replacedTag") : t("tire.identity.correctedTag")} · {t("tire.identity.hint", { label: mountedLabel || "—" })}</div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
               <div style={{ gridColumn: "span 2" }}>
                 <div className="label-xs" style={{ letterSpacing: ".06em" }}>{t("tire.notes")}</div>
                 <textarea className="textarea" style={{ marginTop: 6, minHeight: 56 }} value={tire.notes ?? ""} onChange={(e) => onChange({ notes: e.target.value })} />

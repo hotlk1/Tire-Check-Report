@@ -14,10 +14,15 @@ export async function publishThresholdsAction(form: FormData) {
   const session = await requireAdmin();
   if (!canConfigure(session)) redirect("/admin/settings?error=not_allowed");
   const cls = (k: "steer" | "drive" | "trailer" | "spare") => ({ redMax: n(form, `tread.${k}.redMax`), yellowMax: n(form, `tread.${k}.yellowMax`) });
-  const psi = (k: "steer" | "drive" | "trailer" | "spare") => ({ redBelow: n(form, `psi.${k}.redBelow`), yellowBelow: n(form, `psi.${k}.yellowBelow`), redAbove: n(form, `psi.${k}.redAbove`) });
-  const photoPolicy = Object.fromEntries((Object.keys(DEFAULT_PHOTO_POLICY) as (keyof PhotoPolicy)[]).map((k) => [k, form.get(`photo.${k}`) === "on"])) as unknown as PhotoPolicy;
+  const psi = (k: "steer" | "drive" | "trailer" | "spare") => ({ redBelow: n(form, `psi.${k}.redBelow`), yellowBelow: n(form, `psi.${k}.yellowBelow`), yellowAbove: n(form, `psi.${k}.yellowAbove`), redAbove: n(form, `psi.${k}.redAbove`) });
+  const flags = Object.fromEntries((Object.keys(DEFAULT_PHOTO_POLICY).filter((k) => k !== "treadBelow32") as (keyof Omit<PhotoPolicy, "treadBelow32">)[]).map((k) => [k, form.get(`photo.${k}`) === "on"])) as unknown as Omit<PhotoPolicy, "treadBelow32">;
+  const below = (k: "steer" | "drive" | "trailer" | "spare") => {
+    const raw = String(form.get(`photo.treadBelow32.${k}`) ?? "").trim();
+    return raw === "" ? null : Number(raw);
+  };
+  const photoPolicy: PhotoPolicy = { ...flags, treadBelow32: { steer: below("steer"), drive: below("drive"), trailer: below("trailer"), spare: below("spare") } };
   const config: ThresholdConfig = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     tread32: { steer: cls("steer"), drive: cls("drive"), trailer: cls("trailer"), spare: cls("spare") },
     psi: { steer: psi("steer"), drive: psi("drive"), trailer: psi("trailer"), spare: psi("spare") },
     axle: { psiDiffYellow: n(form, "axle.psiDiffYellow"), psiDiffRed: n(form, "axle.psiDiffRed"), dualTreadMismatch: n(form, "axle.dualTreadMismatch") },

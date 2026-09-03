@@ -7,7 +7,7 @@ import { listTireAssets, type TireAssetState } from "@/lib/repos/tire-assets";
 import { registerTireAction } from "./actions";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-const STATES: TireAssetState[] = ["mounted", "spare", "unmounted", "damaged", "removed", "disposed", "lost"];
+const STATES: TireAssetState[] = ["mounted", "spare", "storage", "unassigned", "damaged", "removed", "disposed", "lost"];
 
 export default async function TireAssetsPage({ searchParams }: PageProps<"/admin/tires/assets">) {
   const session = await requireAdmin();
@@ -44,6 +44,7 @@ export default async function TireAssetsPage({ searchParams }: PageProps<"/admin
             <input name="model" placeholder={t("admin.assets.model")} className={inputCls} />
             <input name="size" placeholder={t("tire.size")} className={inputCls} />
             <input name="serial" placeholder={t("admin.tireAssets.serial")} className={inputCls} />
+            <input name="storageLocation" placeholder={t("admin.tireAssets.storageLocation")} className={inputCls} />
             <button type="submit" className={btnPrimary}>{t("admin.common.save")}</button>
           </form>
         </Panel>
@@ -79,7 +80,7 @@ export default async function TireAssetsPage({ searchParams }: PageProps<"/admin
                 <Td><Link className="font-mono font-semibold text-accent" href={`/admin/tires/assets/${r.id}`}>{r.code}</Link>{r.serial ? <span className="ml-1 text-[11px] text-text-3">{r.serial}</span> : null}</Td>
                 <Td>{t(`admin.tireAssets.states.${r.state}`)}</Td>
                 <Td>{r.variant_label ?? ([r.make, r.model, r.size].filter(Boolean).join(" ") || "—")}</Td>
-                <Td>{r.current_asset_id ? <Link className="text-accent" href={`${assetBase(r.current_asset_type ?? "truck")}/${r.current_asset_id}`}>{r.current_unit} · {r.current_position_key}</Link> : "—"}</Td>
+                <Td>{r.current_asset_id ? <Link className="text-accent" href={`${assetBase(r.current_asset_type ?? "truck")}/${r.current_asset_id}`}>{r.current_unit} · {r.current_position_key}</Link> : r.storage_location ?? "—"}</Td>
                 <Td right>{r.last_tread_32nds !== null ? `${r.last_tread_32nds}/32 · ${r.last_psi ?? "—"} PSI` : "—"}</Td>
                 <Td>{fmtDate(r.created_at, locale, false)}</Td>
               </tr>

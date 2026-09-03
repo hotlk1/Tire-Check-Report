@@ -29,9 +29,10 @@ export function photoStateOf(r: TireReading | undefined, photoMissing: boolean):
 }
 
 /**
- * One axle of the diagram: label row with the AVG PSI chip and the Δ L/R
- * chip, then left cells · beam · right cells. Duals carry a = / ≠ tread
- * match glyph between the outer and inner tire (design §1a).
+ * One axle drawn like the real thing: a beam runs across the row with a hub
+ * in the middle; the left and right tires sit tightly on each end (duals as
+ * a pair with the `=` / `≠` tread-match glyph on the beam between them) and
+ * the side-to-side PSI difference chip sits on the beam between the sides.
  */
 export function AxleRow({ axle, label, layout, readings, evaluation, selected, onSelect, showPos = true, size = "md" }: Props) {
   const t = useT();
@@ -69,12 +70,11 @@ export function AxleRow({ axle, label, layout, readings, evaluation, selected, o
   const glyph = (side: "left" | "right") => {
     const pair = cmp?.pairs.find((p) => p.side === side);
     const m = pair?.treadMatch ?? null;
-    const sym = m === null ? "?" : m ? "=" : "≠";
-    const ink = m === null ? "#C6CCD8" : m ? "var(--st-ok)" : "var(--st-crit)";
+    const sym = m === null ? "·" : m ? "=" : "≠";
     return (
-      <div className="match-glyph" title={m === null ? "" : t(m ? "tires.compare.treadMatch" : "tires.compare.treadMismatch")}>
-        <span style={{ color: ink }}>{sym}</span>
-      </div>
+      <span className="match-glyph" data-match={m === null ? "none" : m ? "yes" : "no"} title={m === null ? "" : t(m ? "tires.compare.treadMatch" : "tires.compare.treadMismatch")} aria-label={m === null ? undefined : t(m ? "tires.compare.treadMatch" : "tires.compare.treadMismatch")}>
+        {sym}
+      </span>
     );
   };
 
@@ -82,33 +82,31 @@ export function AxleRow({ axle, label, layout, readings, evaluation, selected, o
   const right = axle.dual ? [axle.tires[2], axle.tires[3]] : [axle.tires[1]];
 
   return (
-    <div style={{ padding: "4px 2px 8px" }} data-axle={axle.key}>
-      <div className="axle-label">
+    <div className="axle" data-axle={axle.key} data-role={axle.role} data-dual={axle.dual}>
+      <div className="axle-head">
         <span className="label-xs">
           {label}
           {axle.liftable ? <span style={{ marginLeft: 6, opacity: 0.7 }}>· {t("equipment.liftable")}</span> : null}
         </span>
-        <span className="chip-mono" style={{ color: "var(--indigo)", background: "var(--indigo-soft)" }}>
-          {avg === null ? t("design.avgNone") : t("design.avg", { v: avg })}
-        </span>
-        {diff !== null ? (
-          <span className="chip-mono" data-status={diffStatus} style={{ color: diffStatus === "green" ? "var(--text-3)" : "var(--s)", background: diffStatus === "green" ? "var(--hair-2)" : "var(--s-soft)" }}>
-            {t("design.diff", { v: fmt(diff) })}
-          </span>
-        ) : null}
+        <span className="chip-mono" style={{ color: "var(--indigo)", background: "var(--indigo-soft)" }}>{avg === null ? t("design.avgNone") : t("design.avg", { v: avg })}</span>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+      <div className="axle-row">
+        <div className="axle-beam" aria-hidden>
+          <span className="hub" />
+        </div>
+        <div className="axle-side">
           {node(left[0])}
           {axle.dual ? glyph("left") : null}
           {axle.dual ? node(left[1]) : null}
         </div>
-        <div className="beam">
-          <span />
-          <span className="hub" />
-          <span />
+        <div className="axle-mid">
+          {diff !== null ? (
+            <span className="chip-mono axle-diff" data-status={diffStatus} title={t("tires.compare.sideToSide")}>
+              {t("design.diffShort", { v: fmt(diff) })}
+            </span>
+          ) : null}
         </div>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
+        <div className="axle-side">
           {node(right[0])}
           {axle.dual ? glyph("right") : null}
           {axle.dual ? node(right[1]) : null}

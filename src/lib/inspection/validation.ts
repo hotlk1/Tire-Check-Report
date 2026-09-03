@@ -8,7 +8,7 @@ import type { MissingInput, TireReading } from "@/lib/tires/types";
  * pure so the same messages appear in the UI, in unit tests and (for the
  * blocking ones) in the server's rejection payload.
  */
-export type TireIssueCode = "psi_required" | "tread_required" | "photo_required_damaged" | "photo_required_oos" | "photo_required_tread" | "photo_required_psi" | "psi_out_of_range" | "tread_out_of_range";
+export type TireIssueCode = "psi_required" | "tread_required" | "photo_required_damaged" | "photo_required_oos" | "photo_required_tread_threshold" | "photo_required_tread" | "photo_required_psi" | "psi_out_of_range" | "tread_out_of_range";
 
 export interface TireSaveIssue {
   code: TireIssueCode;
@@ -27,7 +27,7 @@ export function tireSaveIssues(reading: TireReading, pos: LayoutPosition, config
     else if (m === "tread") out.push({ code: "tread_required", field: "tread" });
     else if (m === "photo") {
       const code: TireIssueCode =
-        reading.damage === "non_repairable" ? "photo_required_oos" : reading.damage === "repairable" ? "photo_required_damaged" : ev.treadStatus === "yellow" || ev.treadStatus === "red" ? "photo_required_tread" : "photo_required_psi";
+        ev.photoReason === "oos" ? "photo_required_oos" : ev.photoReason === "damaged" ? "photo_required_damaged" : ev.photoReason === "tread_threshold" ? "photo_required_tread_threshold" : ev.photoReason === "tread_status" ? "photo_required_tread" : "photo_required_psi";
       out.push({ code, field: "photo" });
     }
   }

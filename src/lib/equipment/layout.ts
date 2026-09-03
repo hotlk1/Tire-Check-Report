@@ -27,6 +27,8 @@ export interface LayoutComponentInput {
   configurationId: string | null;
   configVersion: number | null;
   config: EquipmentConfig;
+  /** Spare slots added for this inspection beyond the configuration (`extra-1`, `extra-2`, …). */
+  extraSpares?: number;
 }
 
 export interface LayoutPosition {
@@ -117,8 +119,9 @@ export function buildLayout(inputs: LayoutComponentInput[], opts: NumberingOptio
 
   // Spares are numbered after every regular position, component by component.
   for (const c of components) {
-    const cfg = ordered.find((o) => o.slot === c.slot)!.config;
-    for (const s of cfg.spares) {
+    const input = ordered.find((o) => o.slot === c.slot)!;
+    const slots = [...input.config.spares, ...Array.from({ length: Math.max(0, Math.min(6, input.extraSpares ?? 0)) }, (_, i) => ({ key: `extra-${i + 1}` }))];
+    for (const s of slots) {
       const number = opts.legacy ? (c.slot === "truck" ? 19 : 20) : next++;
       c.spares.push(number);
       positions.push({ number, key: `${c.slot}/${s.key}`, slot: c.slot, kind: c.kind, axleKey: `${c.slot}/spare`, positionClass: "spare", side: "spare", abbreviation: "SP", order: c.spares.length - 1, requiresPsi: false, isSpare: true, liftable: false });
@@ -131,7 +134,8 @@ export function buildLayout(inputs: LayoutComponentInput[], opts: NumberingOptio
 export function legacyLayout(mode: "truck" | "trailer" | "truck_trailer", assets: { truck?: { id: string; unitNumber: string } | null; trailer?: { id: string; unitNumber: string } | null } = {}): InspectionLayout {
   const inputs: LayoutComponentInput[] = [];
   if (mode !== "trailer") inputs.push({ slot: "truck", kind: "truck", assetId: assets.truck?.id ?? null, unitNumber: assets.truck?.unitNumber ?? null, configurationId: null, configVersion: null, config: defaultConfigFor("truck") });
-  if (mode !== "truck") inputs.push({ slot: "trailer", kind: "trailer", assetId: assets.trailer?.id ?? null, unitNumber: assets.trailer?.unitNumber ?? null, configurationId: null, configVersion: null, config: defaultConfigFor("trailer") });
+  // The original design had exactly one trailer spare (tire 20).
+  if (mode !== "truck") inputs.push({ slot: "trailer", kind: "trailer", assetId: assets.trailer?.id ?? null, unitNumber: assets.trailer?.unitNumber ?? null, configurationId: null, configVersion: null, config: { ...defaultConfigFor("trailer"), templateKey: "trailer-2-axle", spares: [{ key: "spare-1" }] } });
   // Trailer-only legacy inspections numbered trailer tires 11–18: shift by the tractor's ten positions.
   const layout = buildLayout(inputs, { legacy: true });
   if (mode === "trailer") {

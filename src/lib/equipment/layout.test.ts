@@ -25,12 +25,12 @@ describe("equipment templates", () => {
 });
 
 describe("buildLayout", () => {
-  it("standard tractor + 2-axle trailer reproduces the original 1–20 numbering", () => {
+  it("standard tractor + 2-axle trailer keeps the original 1–18 numbering, with spares after (trailer has two spare slots)", () => {
     const l = buildLayout([comp("truck", "tractor-standard"), comp("trailer", "trailer-2-axle")]);
-    expect(l.positions.map((p) => p.number)).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(l.positions.map((p) => p.number)).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
     expect(l.positions[0]).toMatchObject({ key: "truck/steer:L", positionClass: "steer", abbreviation: "L", requiresPsi: true });
     expect(l.positions[10]).toMatchObject({ number: 11, key: "trailer/axle-1:LO", positionClass: "trailer" });
-    expect(spareNumbers(l)).toEqual([19, 20]);
+    expect(spareNumbers(l)).toEqual([19, 20, 21]);
     expect(requiredNumbers(l)).toHaveLength(18);
     expect(l.components.map((c) => c.axles.length)).toEqual([3, 2]);
     expect(modeOf(l)).toBe("truck_trailer");
@@ -49,7 +49,7 @@ describe("buildLayout", () => {
     expect(requiredNumbers(four)).toHaveLength(10 + 16);
     const five = buildLayout([comp("truck", "tractor-standard"), comp("trailer", "trailer-5-axle")]);
     expect(requiredNumbers(five)).toHaveLength(10 + 20);
-    expect(five.positions.at(-1)).toMatchObject({ number: 32, isSpare: true, slot: "trailer" });
+    expect(five.positions.at(-1)).toMatchObject({ number: 33, isSpare: true, slot: "trailer" });
   });
   it("Michigan 11-axle trailer with two spares", () => {
     const l = buildLayout([comp("truck", "tractor-standard"), comp("trailer", "trailer-michigan-11")]);
@@ -63,6 +63,11 @@ describe("buildLayout", () => {
     expect(l.components[2].axles[0].tires).toEqual([19, 20, 21, 22]);
     expect(requiredNumbers(l)).toHaveLength(10 + 8 + 12 + 4 + 8);
     expect(modeOf(l)).toBe("combination");
+  });
+  it("driver-added spare slots extend a component without changing its configuration", () => {
+    const l = buildLayout([{ ...comp("truck", "tractor-standard"), extraSpares: 2 }]);
+    expect(spareNumbers(l)).toEqual([11, 12, 13]);
+    expect(l.positions.filter((p) => p.isSpare).map((p) => p.key)).toEqual(["truck/spare-1", "truck/extra-1", "truck/extra-2"]);
   });
   it("zero spares and multiple spares", () => {
     const none = buildLayout([comp("trailer", "trailer-no-spare")]);

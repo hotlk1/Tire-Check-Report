@@ -41,7 +41,7 @@ export default async function TireAssetPage({ params, searchParams }: PageProps<
     <>
       <PageHeader
         title={`${tire.code} · ${label}`}
-        subtitle={`${t(`admin.tireAssets.states.${tire.state}`)}${tire.current_unit ? ` · ${tire.current_unit} · ${tire.current_position_key}` : ""}${tire.serial ? ` · ${tire.serial}` : ""}`}
+        subtitle={`${t(`admin.tireAssets.states.${tire.state}`)}${tire.current_unit ? ` · ${tire.current_unit} · ${tire.current_position_key}` : ""}${tire.storage_location ? ` · ${tire.storage_location}` : ""}${tire.serial ? ` · ${tire.serial}` : ""}`}
         actions={<Link className={btnSecondary} href="/admin/tires/assets">‹ {t("admin.tireAssets.title")}</Link>}
       />
       {sp.saved ? <div className="mb-3 rounded-[var(--radius)] bg-status-green-soft px-3 py-2 text-[13px] text-status-green">{t("admin.common.saved")}</div> : null}
@@ -77,8 +77,17 @@ export default async function TireAssetPage({ params, searchParams }: PageProps<
                 </label>
                 <button type="submit" className={btnSecondary}>{tire.current_asset_id ? t("admin.assets.move") : t("admin.tireAssets.mount")}</button>
               </form>
+              <form action={setTireStateAction} className="flex flex-wrap items-end gap-2 text-[12px]" data-testid="storage-form">
+                <input type="hidden" name="tireId" value={tire.id} />
+                <input type="hidden" name="state" value="storage" />
+                <label className="text-text-2">
+                  {t("admin.tireAssets.storageLocation")}
+                  <input name="storageLocation" className={inputCls + " h-9 w-48"} placeholder="Chicago Yard" defaultValue={tire.storage_location ?? ""} />
+                </label>
+                <button type="submit" className={btnSecondary} data-testid="state-storage">{t("admin.tireAssets.states.storage")}</button>
+              </form>
               <div className="flex flex-wrap gap-2">
-                {(["unmounted", "damaged", "removed", "lost", "disposed"] as const).filter((s) => s !== tire.state).map((s) => (
+                {(["unassigned", "damaged", "lost", "disposed"] as const).filter((s) => s !== tire.state).map((s) => (
                   <form key={s} action={setTireStateAction}>
                     <input type="hidden" name="tireId" value={tire.id} />
                     <input type="hidden" name="state" value={s} />

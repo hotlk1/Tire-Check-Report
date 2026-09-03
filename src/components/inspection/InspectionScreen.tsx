@@ -7,13 +7,15 @@ import { useI18n } from "@/i18n/client";
 import type { MessageKey } from "@/i18n";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { AppHeader } from "@/components/driver/AppHeader";
+import { FeedbackSheet } from "@/components/driver/FeedbackSheet";
+import { loadLastEquipment, saveLastEquipment } from "@/lib/driver/memory";
 import { TireDiagram } from "@/components/tire/TireDiagram";
 import { axleLabel, componentName } from "@/lib/equipment/labels";
 import { TireSheet } from "@/components/tire/TireSheet";
 import { apiJson } from "@/lib/client/api";
 import { useOnline } from "@/lib/client/hooks";
 import { axleByKey, type InspectionLayout } from "@/lib/equipment/layout";
-import { applyEquipmentChange, draftHasContent, draftLayout, emptyTire, isCurrentDraft, isDraftExpired, newDraft, previewEquipmentChange, tireOf, toReadings, type DraftTire, type InspectionDraft } from "@/lib/inspection/draft";
+import { applyEquipmentChange, baseModeOf, draftHasContent, draftLayout, emptyComponent, emptyTire, isCurrentDraft, isDraftExpired, newDraft, previewEquipmentChange, tireOf, toReadings, type DraftTire, type InspectionDraft } from "@/lib/inspection/draft";
 import { buildIssues, verdictOf } from "@/lib/inspection/issues";
 import { deleteDraft, deletePhoto, getDraft, listDraftsForDriver, listPhotosForDraft, pruneOldDrafts, saveDraft, savePhoto, type StoredPhoto } from "@/lib/offline/db";
 import { prepareImage } from "@/lib/offline/image";
@@ -53,8 +55,24 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   const [analyzing, setAnalyzing] = useState<number | null>(null);
   const [pendingChange, setPendingChange] = useState<{ selection: EquipmentSelection; dropped: ReturnType<typeof previewEquipmentChange> } | null>(null);
   const [highlightIssues, setHighlightIssues] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [remembered, setRemembered] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const issuesRef = useRef<HTMLDivElement>(null);
+
+  /** A fresh draft, pre-selecting the equipment used last time on this device (shown as "Last used", always changeable). */
+  const freshDraft = useCallback(() => {
+    const d = newDraft(ctx);
+    const last = loadLastEquipment(ctx.tenantSlug, ctx.driverId);
+    if (last) {
+      d.components = last.map((c) => ({ ...emptyComponent(c.slot), kind: c.kind, asset: c.asset }));
+      d.mode = baseModeOf(d.components);
+      setRemembered(true);
+    } else {
+      setRemembered(false);
+    }
+    return d;
+  }, [ctx]);
 
   /** Tenant rules snapshot (thresholds + photo policy) so the client evaluates exactly like the server. */
   const loadRules = useCallback(async (draftId: string) => {
@@ -86,7 +104,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
           setCandidate(open[0]);
           setPhase("resume");
         } else {
-          const d = newDraft(ctx);
+          const d = freshDraft();
           await saveDraft(d);
           setDraft(d);
           setPhase("equipment");
@@ -94,7 +112,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
         }
       } catch (e) {
         console.error("draft load failed", e);
-        const d = newDraft(ctx);
+        const d = freshDraft();
         setDraft(d);
         setPhase("equipment");
       }
@@ -102,7 +120,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     return () => {
       cancelled = true;
     };
-  }, [ctx, loadRules]);
+  }, [ctx, loadRules, freshDraft]);
 
   useEffect(() => startOutboxWatcher(), []);
 
@@ -120,7 +138,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   };
   const startNew = async () => {
     if (candidate) await deleteDraft(candidate.id);
-    const d = newDraft(ctx);
+    const d = freshDraft();
     await saveDraft(d);
     setDraft(d);
     setPhotos({});
@@ -172,10 +190,15 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
     const next = { ...changed.draft, odometer: selection.odometer, hubometer: selection.hubometer };
     setDraft(next);
     saveDraft(next).catch(() => {});
+    saveLastEquipment(ctx.tenantSlug, ctx.driverId, next.components.filter((c) => c.asset).map((c) => ({ slot: c.slot, kind: c.kind, asset: c.asset! })));
+    setRemembered(false);
     setPendingChange(null);
     setSelected(null);
     setPhase("inspect");
     if (next.locationState === "idle") captureLocation();
+  };
+  const addSpare = (slot: InspectionLayout["components"][number]["slot"]) => {
+    update((d) => ({ components: d.components.map((c) => (c.slot === slot ? { ...c, extraSpares: Math.min(6, (c.extraSpares ?? 0) + 1) } : c)) }));
   };
   const onApplyEquipment = (selection: EquipmentSelection) => {
     if (!draft) return;
@@ -302,13 +325,14 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   };
 
   const stepLabel = phase === "review" ? t("design.step.review") : phase === "inspect" ? t("design.step.tires") : t("design.step.equipment");
-  const header = <AppHeader tenantName={ctx.tenantName} step={stepLabel} progress={phase === "inspect" || phase === "review" ? progress : undefined} right={phase === "equipment" ? <LanguageSwitcher dark /> : undefined} />;
+  const header = <AppHeader tenantName={ctx.tenantName} step={stepLabel} progress={phase === "inspect" || phase === "review" ? progress : undefined} right={phase === "equipment" ? <LanguageSwitcher dark /> : undefined} onFeedback={phase === "loading" ? undefined : () => setFeedbackOpen(true)} />;
 
   const shell = (children: React.ReactNode) => (
     <div className="flex h-dvh flex-col" style={{ background: "var(--bg)", overflow: "hidden" }}>
       {header}
       {!online ? <div style={{ background: "var(--st-warn-tint)", color: "#8a6100", font: "600 12px/1 var(--font-sans)", textAlign: "center", padding: "7px 12px" }}>{t("app.offline")}</div> : null}
       {children}
+      {feedbackOpen ? <FeedbackSheet page={`driver/${phase}`} onClose={() => setFeedbackOpen(false)} /> : null}
     </div>
   );
 
@@ -320,7 +344,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
   if (phase === "equipment" || !layout || !evaluation) {
     return shell(
       <>
-        <EquipmentStep key={draft.id + String(hasReadings)} draft={draft} editing={hasReadings} onApply={onApplyEquipment} onCancel={hasReadings && layout ? () => setPhase("inspect") : signOut} />
+        <EquipmentStep key={draft.id + String(hasReadings)} draft={draft} editing={hasReadings} driverName={ctx.driverName} remembered={remembered && !hasReadings} onApply={onApplyEquipment} onCancel={hasReadings && layout ? () => setPhase("inspect") : signOut} onChangeDriver={signOut} />
         {pendingChange ? (
           <>
             <div className="sheet-backdrop" onClick={() => setPendingChange(null)} aria-hidden />
@@ -392,7 +416,7 @@ export function InspectionScreen({ ctx }: { ctx: DriverContext }) {
                 </button>
               </div>
             )}
-            <TireDiagram layout={layout} readings={readings} evaluation={evaluation} selected={selected} onSelect={isReview ? undefined : openTire} />
+            <TireDiagram layout={layout} readings={readings} evaluation={evaluation} selected={selected} onSelect={isReview ? undefined : openTire} onAddSpare={isReview ? undefined : addSpare} />
           </div>
 
           <aside>

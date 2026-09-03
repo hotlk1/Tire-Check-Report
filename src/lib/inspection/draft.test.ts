@@ -38,7 +38,7 @@ describe("draft", () => {
     const sub = toSubmission(d, layout);
     const parsed = inspectionSubmissionSchema.safeParse(sub);
     expect(parsed.success).toBe(true);
-    expect(sub.components).toEqual([{ slot: "truck", kind: "truck", assetId: uuid(1), configurationId: null }]);
+    expect(sub.components).toEqual([{ slot: "truck", kind: "truck", assetId: uuid(1), configurationId: null, extraSpares: 0 }]);
     expect(sub.tires).toHaveLength(2);
     expect(sub.tires[1]).toMatchObject({ key: "truck/steer:R", number: 2, notes: "cut" });
     expect(sub.tires[1].photoClientIds).toHaveLength(1);
