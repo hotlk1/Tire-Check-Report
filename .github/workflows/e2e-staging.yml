@@ -8,7 +8,7 @@ on:
       base_url:
         description: Deployment URL to test
         required: true
-        default: https://tire-check-staging-git-claude-tire-in-3e1c9b-ion-7374s-projects.vercel.app
+        default: https://tire-check-staging.vercel.app
       tenant:
         description: Tenant slug
         required: true
