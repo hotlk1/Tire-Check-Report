@@ -17,7 +17,18 @@ function loadEnv() {
 }
 loadEnv();
 const DB = process.env.DATABASE_URL;
-const SUPER = process.env.PG_SUPER_URL ?? (DB ? DB.replace(/\/\/[^@]+@/, "//postgres@") : undefined);
+/** Superuser connection to the SAME database as DATABASE_URL (PG_SUPER_URL may point at the maintenance db). */
+const SUPER = (() => {
+  if (!DB) return undefined;
+  try {
+    const target = new URL(DB);
+    const su = new URL(process.env.PG_SUPER_URL ?? DB.replace(/\/\/[^@]+@/, "//postgres@"));
+    su.pathname = target.pathname;
+    return su.toString();
+  } catch {
+    return undefined;
+  }
+})();
 
 describe.skipIf(!DB)("inspection submission rules (database)", () => {
   let sql: postgres.Sql;
