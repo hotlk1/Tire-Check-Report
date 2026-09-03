@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSql } from "@/lib/db/client";
+import { getSql, withScope } from "@/lib/db/client";
 import { env, tier } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -10,7 +10,12 @@ export const dynamic = "force-dynamic";
  * can be read by anyone verifying an environment; never echoes values.
  */
 export async function GET() {
-  const checks: Record<string, unknown> = { node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null };
+  const checks: Record<string, unknown> = {
+    node: process.version,
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+    gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+    commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+  };
   // Names only (never values) of integration-provided variables, to diagnose wiring.
   checks.envNames = Object.keys(process.env)
     .filter((k) => /SUPABASE|POSTGRES|DATABASE_URL|TURNSTILE|APP_ENV|DRIVER_SESSION/i.test(k))
@@ -37,7 +42,18 @@ export async function GET() {
     const [row] = await sql<{ role: string; bypass: boolean; migrations: number; tenants: number }[]>`
       select current_user as role, (select rolbypassrls or rolsuper from pg_roles where rolname = current_user) as bypass,
              (select count(*)::int from app.schema_migrations) as migrations, (select count(*)::int from tenants) as tenants`;
-    checks.database = { ok: true, loginRole: row.role, loginRoleCanBypassRls: row.bypass, migrations: row.migrations, tenantsVisibleUnscoped: row.tenants };
+    // The role actually used inside scoped transactions (SET LOCAL ROLE app_user when the login role could bypass RLS).
+    const [scoped] = await withScope({ actor: "system" }, (tx) => tx<{ role: string; tenants: number }[]>`select current_user as role, (select count(*)::int from tenants) as tenants`);
+    checks.database = {
+      ok: true,
+      loginRole: row.role,
+      loginRoleCanBypassRls: row.bypass,
+      transactionRole: scoped.role,
+      rlsEnforcedInTransactions: scoped.role === "app_user" || !row.bypass,
+      tenantsVisibleInUnscopedTransaction: scoped.tenants,
+      migrations: row.migrations,
+      tenantsVisibleUnscoped: row.tenants,
+    };
   } catch (err) {
     checks.database = { ok: false, error: err instanceof Error ? err.message.slice(0, 200) : "failed" };
   }
