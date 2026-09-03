@@ -1,8 +1,11 @@
 name: E2E staging smoke test
 
 # Runs the driver flow (phone → equipment → tires → photo → submit → report)
-# against a deployed HTTPS URL. Manual: Actions → "E2E staging smoke test" → Run.
+# against the deployed staging URL after every push to `staging` (waits for
+# Vercel to serve this commit), or manually against any URL.
 on:
+  push:
+    branches: [staging]
   workflow_dispatch:
     inputs:
       base_url:
@@ -31,13 +34,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      E2E_BASE_URL: ${{ inputs.base_url }}
-      E2E_TENANT: ${{ inputs.tenant }}
-      E2E_PHONE: ${{ inputs.phone }}
-      E2E_TRUCK_QUERY: ${{ inputs.truck_query }}
-      E2E_TRUCK_NAME: ${{ inputs.truck_name }}
+      E2E_BASE_URL: ${{ inputs.base_url || 'https://tire-check-staging.vercel.app' }}
+      E2E_TENANT: ${{ inputs.tenant || 'test' }}
+      E2E_PHONE: ${{ inputs.phone || '5550001234' }}
+      E2E_TRUCK_QUERY: ${{ inputs.truck_query || 'T-100' }}
+      E2E_TRUCK_NAME: ${{ inputs.truck_name || 'T-100' }}
     steps:
       - uses: actions/checkout@v4
+      - name: Wait for Vercel to serve this commit
+        if: github.event_name == 'push'
+        run: |
+          for i in $(seq 1 40); do
+            body=$(curl -s "$E2E_BASE_URL/api/health" || true)
+            if echo "$body" | grep -q "\"commit\":\"$GITHUB_SHA\"" && echo "$body" | grep -q '"ok":true'; then
+              echo "deployed: $GITHUB_SHA"; exit 0
+            fi
+            echo "waiting ($i)…"; sleep 15
+          done
+          echo "deployment did not become healthy in time"; echo "$body"; exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
