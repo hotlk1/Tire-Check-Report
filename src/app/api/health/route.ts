@@ -11,6 +11,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const checks: Record<string, unknown> = { node: process.version, vercelEnv: process.env.VERCEL_ENV ?? null, gitRef: process.env.VERCEL_GIT_COMMIT_REF ?? null };
+  // Names only (never values) of integration-provided variables, to diagnose wiring.
+  checks.envNames = Object.keys(process.env)
+    .filter((k) => /SUPABASE|POSTGRES|DATABASE_URL|TURNSTILE|APP_ENV|DRIVER_SESSION/i.test(k))
+    .sort();
   try {
     const e = env();
     checks.tier = tier();
