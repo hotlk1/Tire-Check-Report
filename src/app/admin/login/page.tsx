@@ -7,7 +7,9 @@ import { listDevUsers } from "@/lib/repos/admin/users";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({ searchParams }: PageProps<"/admin/login">) {
+  const sp = await searchParams;
+  const error = typeof sp.error === "string" ? sp.error : undefined;
   const session = await getAdminSession();
   if (session) redirect("/admin");
   const { t } = await getServerTranslator();
@@ -22,7 +24,7 @@ export default async function AdminLoginPage() {
         </div>
         <h1 style={{ font: "700 22px/1.1 var(--font-sans)", color: "#fff", letterSpacing: "-.01em" }}>{t("admin.login.title")}</h1>
       <div className="card" style={{ marginTop: 14, padding: 20 }}>
-        <LoginForm dev={provider.name === "dev"} devUsers={devUsers.map((u) => ({ email: u.email, name: u.full_name, superAdmin: u.is_super_admin }))} />
+        <LoginForm dev={provider.name === "dev"} initialError={error} devUsers={devUsers.map((u) => ({ email: u.email, name: u.full_name, superAdmin: u.is_super_admin }))} />
       </div>
       </div>
     </main>

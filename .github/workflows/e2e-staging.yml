@@ -2,7 +2,8 @@ name: E2E staging smoke test
 
 # Runs the driver flow (phone → equipment → tires → photo → submit → report)
 # against the deployed staging URL after every push to `staging` (waits for
-# Vercel to serve this commit), or manually against any URL.
+# Vercel to serve this commit), or manually against any URL. Uses the dedicated
+# smoke-test driver (5550009999 / E2E-100) so manual testers' data is untouched.
 on:
   push:
     branches: [staging]
@@ -19,15 +20,15 @@ on:
       phone:
         description: Driver phone (10 digits)
         required: true
-        default: "5550001234"
+        default: "5550009999"
       truck_query:
         description: Text typed into the truck search
         required: true
-        default: T-100
+        default: E2E-100
       truck_name:
         description: Unit number shown in the result
         required: true
-        default: T-100
+        default: E2E-100
 
 jobs:
   smoke:
@@ -36,9 +37,11 @@ jobs:
     env:
       E2E_BASE_URL: ${{ inputs.base_url || 'https://tire-check-staging.vercel.app' }}
       E2E_TENANT: ${{ inputs.tenant || 'test' }}
-      E2E_PHONE: ${{ inputs.phone || '5550001234' }}
-      E2E_TRUCK_QUERY: ${{ inputs.truck_query || 'T-100' }}
-      E2E_TRUCK_NAME: ${{ inputs.truck_name || 'T-100' }}
+      E2E_PHONE: ${{ inputs.phone || '5550009999' }}
+      E2E_TRUCK_QUERY: ${{ inputs.truck_query || 'E2E-100' }}
+      E2E_TRUCK_NAME: ${{ inputs.truck_name || 'E2E-100' }}
+      # Team alias of the same deployment; must 308 to the canonical origin.
+      E2E_ALIAS_URL: https://tire-check-staging-ion-7374s-projects.vercel.app
     steps:
       - uses: actions/checkout@v4
       - name: Wait for Vercel to serve this commit
@@ -58,7 +61,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: mkdir -p e2e/out && npx playwright test e2e/driver-flow.spec.ts
+      - run: mkdir -p e2e/out && npx playwright test e2e/auth.spec.ts e2e/driver-flow.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

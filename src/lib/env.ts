@@ -77,6 +77,8 @@ const schema = z.object({
   SUPABASE_STORAGE_BUCKET: z.string().default("inspection-photos"),
   LOCAL_STORAGE_DIR: z.string().default(".data/storage"),
   ANTHROPIC_API_KEY: z.string().optional().or(z.literal("")),
+  /** Explicit canonical origin (https://…). Defaults to Vercel's production URL on production deployments, else the request host. */
+  NEXT_PUBLIC_APP_URL: z.string().optional().or(z.literal("")),
 });
 
 export type Env = z.infer<typeof schema>;

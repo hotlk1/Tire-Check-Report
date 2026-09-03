@@ -96,8 +96,12 @@ async function main() {
       await tx`insert into drivers (tenant_id, full_name, phone, status) values (${t.id}, 'Test Driver', '5550001234', 'active') on conflict (tenant_id, phone) do nothing`;
       await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'truck', 'T-100', 'Freightliner', 'Cascadia', 2023, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
       await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'trailer', 'TR-500', 'Utility', '3000R', 2022, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
+      // Dedicated identities for the automated staging smoke test so it never touches a person's manual test data.
+      await tx`insert into drivers (tenant_id, full_name, phone, status) values (${t.id}, 'E2E Bot', '5550009999', 'active') on conflict (tenant_id, phone) do nothing`;
+      await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'truck', 'E2E-100', 'Freightliner', 'Cascadia', 2023, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
+      await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, 'trailer', 'E2E-500', 'Utility', '3000R', 2022, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
     });
-    console.log("seeded STAGING tenant 'test' (Test Fleet): driver 5550001234, truck T-100, trailer TR-500");
+    console.log("seeded STAGING tenant 'test' (Test Fleet): driver 5550001234, truck T-100, trailer TR-500; smoke-test driver 5550009999, truck E2E-100, trailer E2E-500");
   }
   console.log("seed complete");
 }

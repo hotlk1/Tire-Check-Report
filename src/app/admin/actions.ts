@@ -27,11 +27,8 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
 export async function magicLinkAction(_prev: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   if (!email.includes("@")) return { ok: false, error: "failed" };
-  const { headers } = await import("next/headers");
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const r = await authProvider().sendMagicLink(email, `${proto}://${host}/auth/callback?next=/admin`);
+  const { appOrigin } = await import("@/lib/auth/origin");
+  const r = await authProvider().sendMagicLink(email, `${await appOrigin()}/auth/callback?next=/admin`);
   if (!r.ok) return { ok: false, error: "failed" };
   if (authProvider().name === "dev") redirect("/admin");
   return { ok: true, message: "sent" };

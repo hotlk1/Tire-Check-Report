@@ -1,17 +1,14 @@
-import { headers } from "next/headers";
 import QRCode from "qrcode";
 import { PageHeader, Panel } from "@/components/admin/ui";
 import { CopyButton } from "@/components/admin/CopyButton";
+import { appOrigin } from "@/lib/auth/origin";
 import { getServerTranslator } from "@/i18n/server";
 import { requireAdmin } from "@/lib/auth/session";
 
 export default async function TireCheckPage() {
   const session = await requireAdmin();
   const { t } = await getServerTranslator();
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const url = `${proto}://${host}/t/${session.tenant?.slug ?? ""}`;
+  const url = `${await appOrigin()}/t/${session.tenant?.slug ?? ""}`;
   const svg = await QRCode.toString(url, { type: "svg", margin: 1, width: 240 });
   return (
     <>
