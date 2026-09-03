@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Design handoff (reference only, not shipped) and Playwright output.
+    "design/**",
+    "e2e/out/**",
   ]),
 ]);
 
