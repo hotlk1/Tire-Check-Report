@@ -216,7 +216,7 @@ export const adminEn = {
     },
     usedIn: "Used in readings",
   },
-  tireAssets: { title: "Physical tires", subtitle: "Every tire we know about, with its current location and history", code: "Tire ID", state: "State", states: { mounted: "Mounted", spare: "Spare (mounted)", unmounted: "Unmounted", damaged: "Damaged", removed: "Removed", disposed: "Disposed", lost: "Lost" }, location: "Location", lastReading: "Last reading", history: "History", events: { mount: "Mounted", unmount: "Unmounted", move: "Moved", replace: "Replaced", status: "Status change", inspected: "Inspected" }, inspections: "Inspections", register: "Register tire", registerHint: "A tire not mounted anywhere (stock / spare inventory).", mount: "Mount on a unit", unit: "Unit", position: "Position", serial: "Serial / DOT", noTires: "No physical tires yet. They are created automatically when drivers enter brand, model or size, or register one here.", from: "from", to: "to" },
+  tireAssets: { storageLocation: "Storage location", title: "Physical tires", subtitle: "Every tire we know about, with its current location and history", code: "Tire ID", state: "State", states: { mounted: "Mounted", spare: "Spare (mounted)", unassigned: "Unassigned", storage: "Storage", damaged: "Damaged", removed: "Removed", disposed: "Disposed", lost: "Lost" }, location: "Location", lastReading: "Last reading", history: "History", events: { correction: "Information corrected", mount: "Mounted", unmount: "Unmounted", move: "Moved", replace: "Replaced", status: "Status change", inspected: "Inspected" }, inspections: "Inspections", register: "Register tire", registerHint: "A tire not mounted anywhere (stock / spare inventory).", mount: "Mount on a unit", unit: "Unit", position: "Position", serial: "Serial / DOT", noTires: "No physical tires yet. They are created automatically when drivers enter brand, model or size, or register one here.", from: "from", to: "to" },
   tickets: {
     title: "Service Tickets",
     phase3: "Service tickets are stored in the database first and pushed to Asana / Airtable / Telegram in Phase 3. The table and API contract exist; the UI arrives with Phase 3.",
@@ -226,7 +226,7 @@ export const adminEn = {
     phase3: "Per-tenant telematics (Samsara first, then Motive / Geotab) and Airtable export are implemented in Phase 3. Credentials are stored encrypted per tenant, never in environment variables.",
   },
   settings: {
-    spare: "Spare", photoPolicy: "Photo requirements", photoPolicyHint: "When a photo is mandatory before a tire counts as complete. Enforced on the phone and again on the server.", policy: { damagedRepairable: "Damaged (repairable)", damagedOos: "Damaged / out of service", treadYellow: "Yellow tread", treadRed: "Red tread", psiYellow: "Yellow PSI", psiRed: "Red PSI" }, statutory: "Statutory minimum tread: steer {steer}/32, all other positions {other}/32. Red limits cannot be set below these; stricter is allowed.", systemDefaults: "System defaults apply until you publish a tenant version.", title: "Settings",
+    spare: "Spare", photoPolicy: "Photo requirements", photoPolicyHint: "When a photo is mandatory before a tire counts as complete. Enforced on the phone and again on the server.", policy: { treadBelow32: "Photo when {cls} tread < (32nds)", damagedRepairable: "Damaged (repairable)", damagedOos: "Damaged / out of service", treadYellow: "Yellow tread", treadRed: "Red tread", psiYellow: "Yellow PSI", psiRed: "Red PSI" }, statutory: "Statutory minimum tread: steer {steer}/32, all other positions {other}/32. Red limits cannot be set below these; stricter is allowed.", systemDefaults: "System defaults apply until you publish a tenant version.", title: "Settings",
     thresholds: "Tire thresholds",
     thresholdsHint: "Every change creates a new immutable version. Inspections keep the version that classified them.",
     current: "Current version",
@@ -239,7 +239,7 @@ export const adminEn = {
     treadYellow: "Yellow ≤ (32nds)",
     psiRedBelow: "Red below (PSI)",
     psiYellowBelow: "Yellow below (PSI)",
-    psiRedAbove: "Red above (PSI)",
+    psiYellowAbove: "Yellow above (PSI)", psiRedAbove: "Red above (PSI)",
     axle: "Axle comparison",
     psiDiffYellow: "PSI Δ yellow ≥",
     psiDiffRed: "PSI Δ red ≥",

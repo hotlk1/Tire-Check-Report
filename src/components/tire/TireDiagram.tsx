@@ -17,6 +17,8 @@ export interface TireDiagramProps {
   size?: "sm" | "md" | "lg";
   hideSpares?: boolean;
   hideLegend?: boolean;
+  /** Driver may add a spare slot to a component for this inspection. */
+  onAddSpare?: (slot: InspectionLayout["components"][number]["slot"]) => void;
 }
 
 /**
@@ -24,14 +26,14 @@ export interface TireDiagramProps {
  * per component (tractor, jeep, trailer, dolly, booster) with axle rows,
  * then a SPARES card, rendered from the inspection's layout snapshot.
  */
-export function TireDiagram({ layout, readings, evaluation, selected, onSelect, showPos = true, size = "md", hideSpares, hideLegend }: TireDiagramProps) {
+export function TireDiagram({ layout, readings, evaluation, selected, onSelect, showPos = true, size = "md", hideSpares, hideLegend, onAddSpare }: TireDiagramProps) {
   const t = useT();
   const spares = layout.positions.filter((p) => p.isSpare);
 
   return (
     <div data-diagram>
       {layout.components.map((c) => (
-        <section key={c.slot} className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-vehicle={c.slot} data-kind={c.kind}>
+        <section key={c.slot} className="card component-card" style={{ padding: "12px 10px 12px" }} data-vehicle={c.slot} data-kind={c.kind}>
           <header className="group-head">
             <span className="dot" />
             <span className="name">{componentName(t, c).toUpperCase()}</span>
@@ -44,8 +46,8 @@ export function TireDiagram({ layout, readings, evaluation, selected, onSelect, 
         </section>
       ))}
 
-      {!hideSpares && spares.length ? (
-        <section className="card" style={{ marginBottom: 14, padding: "12px 10px 10px" }} data-spares>
+      {!hideSpares && (spares.length || onAddSpare) ? (
+        <section className="card spares-card" style={{ marginTop: 22, padding: "12px 10px 10px" }} data-spares>
           <header className="group-head">
             <span className="dot" />
             <span className="name">{t("inspection.spares").toUpperCase()}</span>
@@ -56,7 +58,7 @@ export function TireDiagram({ layout, readings, evaluation, selected, onSelect, 
             <div className="axle-label">
               <span className="label-xs">{t("design.mountedSpares")}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
               {spares.map((pos, i) => {
                 const r = readings[pos.number];
                 const ev = evaluation.tires[pos.number];
@@ -83,6 +85,13 @@ export function TireDiagram({ layout, readings, evaluation, selected, onSelect, 
                   </div>
                 );
               })}
+              {onAddSpare
+                ? layout.components.map((c) => (
+                    <button key={c.slot} type="button" className="tire" data-status="none" style={{ ["--tire-w" as string]: "60px", borderStyle: "dashed", background: "transparent", boxShadow: "none", minHeight: 96, display: "grid", placeItems: "center", color: "var(--muted)", font: "600 11px/1.3 var(--font-sans)" }} onClick={() => onAddSpare(c.slot)} data-testid={`add-spare-${c.slot}`}>
+                      + {t("inspection.addSpare", { unit: componentName(t, c) })}
+                    </button>
+                  ))
+                : null}
             </div>
           </div>
         </section>

@@ -37,6 +37,8 @@ export const tireSubmissionSchema = z.object({
   tireVariantId: z.string().uuid().nullable().optional(),
   /** Physical tire the driver saw pre-filled for this position (kept when readings match a mounted tire). */
   tireAssetId: z.string().uuid().nullable().optional(),
+  /** When brand/model/size differ from the mounted tire: the driver's answer to "is this a different physical tire?". */
+  identityAction: z.enum(["replace", "correct"]).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
   photoClientIds: z.array(z.string().uuid()).max(20).default([]),
   /** Legacy "No spare" flag; spares are optional now but old clients may still send it. */
@@ -50,6 +52,8 @@ export const componentSubmissionSchema = z.object({
   assetId: z.string().uuid(),
   /** Configuration version the client rendered; the server re-resolves and rejects a stale layout. */
   configurationId: z.string().uuid().nullable().optional(),
+  /** Spare slots the driver added for this inspection beyond the configured ones. */
+  extraSpares: z.number().int().min(0).max(6).optional().default(0),
 });
 
 export const locationSchema = z.object({

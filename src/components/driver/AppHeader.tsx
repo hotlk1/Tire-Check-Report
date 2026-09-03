@@ -9,7 +9,7 @@ function initials(name: string) {
 }
 
 /** Navy app chrome (design §1a): tenant mark, wordmark, step label, optional progress. */
-export function AppHeader({ tenantName, step, progress, right }: { tenantName: string; step: string; progress?: { done: number; total: number }; right?: ReactNode }) {
+export function AppHeader({ tenantName, step, progress, right, onFeedback }: { tenantName: string; step: string; progress?: { done: number; total: number }; right?: ReactNode; onFeedback?: () => void }) {
   const t = useT();
   return (
     <header className="app-header" style={{ flex: "none", paddingTop: "env(safe-area-inset-top)" }}>
@@ -26,6 +26,11 @@ export function AppHeader({ tenantName, step, progress, right }: { tenantName: s
           </div>
         ) : null}
         {right}
+        {onFeedback ? (
+          <button type="button" onClick={onFeedback} aria-label={t("feedback.button")} title={t("feedback.button")} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,.18)", background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.8)", font: "700 13px/1 var(--font-sans)", flex: "none" }} data-testid="feedback-open">
+            ✎
+          </button>
+        ) : null}
       </div>
     </header>
   );

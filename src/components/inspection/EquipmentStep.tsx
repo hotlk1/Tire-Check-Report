@@ -119,14 +119,18 @@ interface Props {
   draft: InspectionDraft;
   /** True when readings already exist: the step edits equipment instead of starting fresh. */
   editing: boolean;
+  driverName: string;
+  /** Components pre-selected from the driver's last inspection on this device (convenience only). */
+  remembered?: boolean;
   onApply: (selection: EquipmentSelection) => void;
   onCancel: () => void;
+  onChangeDriver: () => void;
 }
 
 const EXTRA_SLOTS: ComponentSlot[] = ["jeep", "dolly", "booster", "trailer2"];
 
 /** "What are you inspecting?" (design §1a step 2), with Add equipment for unusual combinations and explicit validation. */
-export function EquipmentStep({ draft, editing, onApply, onCancel }: Props) {
+export function EquipmentStep({ draft, editing, driverName, remembered, onApply, onCancel, onChangeDriver }: Props) {
   const t = useT();
   const [components, setComponents] = useState<DraftComponent[]>(draft.components);
   const [odometer, setOdometer] = useState<number | null>(draft.odometer);
@@ -201,7 +205,7 @@ export function EquipmentStep({ draft, editing, onApply, onCancel }: Props) {
     return (
       <div key={c.slot} className="card-sm" style={{ marginTop: 14, padding: 16 }} data-component={c.slot}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div className="label">{kindLabel}</div>
+          <div className="label">{kindLabel}{remembered && c.asset && !editing ? <span className="chip-mono" style={{ marginLeft: 8, background: "var(--indigo-soft)", color: "var(--indigo)", fontSize: 10 }}>{t("equipment.lastUsed")}</span> : null}</div>
           {extra ? (
             <button type="button" className="a-link" style={{ color: "var(--st-crit)" }} onClick={() => remove(c.slot)}>
               {t("equipment.remove")}
@@ -239,9 +243,16 @@ export function EquipmentStep({ draft, editing, onApply, onCancel }: Props) {
 
   return (
     <>
-      <div className="scr mx-auto w-full max-w-lg flex-1 overflow-auto" style={{ padding: "26px 20px 20px", minHeight: 0 }}>
+      <div className="scr mx-auto w-full max-w-lg flex-1 overflow-auto" style={{ padding: "18px 20px 20px", minHeight: 0 }}>
+        <div className="unit-row" style={{ marginBottom: 16 }} data-testid="driver-banner">
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--st-ok)", flex: "none" }} />
+          <div style={{ flex: 1, minWidth: 0, font: "600 13px/1.3 var(--font-sans)", color: "var(--ink)" }}>{t("driver.continuingAs", { name: driverName })}</div>
+          <button type="button" className="a-link" onClick={onChangeDriver} data-testid="change-driver">
+            {t("driver.changeDriver")}
+          </button>
+        </div>
         <div className="h2">{editing ? t("equipment.editTitle") : t("equipment.title")}</div>
-        {editing ? <p className="sub" style={{ marginTop: 6 }}>{t("equipment.editHint")}</p> : null}
+        {editing ? <p className="sub" style={{ marginTop: 6 }}>{t("equipment.editHint")}</p> : remembered ? <p className="sub" style={{ marginTop: 6 }} data-testid="remembered-hint">{t("equipment.remembered")}</p> : null}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 16 }}>
           {modes.map(([m, label]) => (
             <button key={m} type="button" className="mode-btn" data-active={mode === m} data-mode={m} onClick={() => setMode(m)}>

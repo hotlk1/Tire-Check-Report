@@ -55,8 +55,15 @@ test("driver can verify, inspect a truck with explicit validation, review and se
   const startNew = page.getByTestId("start-new");
   if (await startNew.isVisible({ timeout: 1500 }).catch(() => false)) await startNew.click();
 
+  // Session is explicit: the driver sees who they are and can change driver.
+  await expect(page.getByTestId("driver-banner")).toContainText(/Continuing as/);
+  await expect(page.getByTestId("change-driver")).toBeVisible();
+
   // Equipment: Start without a truck → explicit error; pick the truck; Start without odometer → explicit error + focus.
   await page.locator('[data-mode="truck"]').click();
+  // A remembered truck from an earlier run on this device may be pre-selected: clear it so the validation path is exercised.
+  const change = page.locator('[data-component="truck"]').getByRole("button", { name: "Change" });
+  if (await change.isVisible().catch(() => false)) await change.click();
   await page.getByTestId("start-inspection").click();
   await expect(page.getByTestId("equipment-errors")).toBeVisible();
   await expect(page.getByTestId("error-truck")).toBeVisible();
@@ -64,7 +71,7 @@ test("driver can verify, inspect a truck with explicit validation, review and se
   await page.getByRole("button", { name: new RegExp(TRUCK_NAME) }).click();
   await expect(page.getByTestId("config-truck")).toContainText(/axle/i);
   await page.getByTestId("start-inspection").click();
-  await expect(page.getByTestId("error-odometer")).toContainText(/Odometer is required/);
+  await expect(page.getByTestId("error-odometer")).toContainText(/Enter the truck odometer to start/);
   await expect(page.getByTestId("odometer")).toBeFocused();
   await page.getByTestId("odometer").fill("123456");
   await page.screenshot({ path: "e2e/out/d2-equipment.png", fullPage: true });
@@ -88,8 +95,11 @@ test("driver can verify, inspect a truck with explicit validation, review and se
   await sheet.getByTestId("mark-damaged").click();
   await sheet.getByTestId("save-tire").click();
   await expect(sheet.getByTestId("tire-errors")).toContainText(/Enter PSI/);
-  await expect(sheet.getByTestId("tire-errors")).toContainText(/tread depth/);
+  await expect(sheet.getByTestId("tire-errors")).toContainText(/Enter tread depth to complete this tire/);
   await expect(sheet.getByTestId("tire-errors")).toContainText(/photo is required for damaged/);
+  // Both photo sources are offered explicitly.
+  await expect(sheet.getByTestId("photo-camera")).toBeVisible();
+  await expect(sheet.getByTestId("photo-gallery")).toBeVisible();
   await page.screenshot({ path: "e2e/out/d4a-save-validation.png", fullPage: true });
   await sheet.getByTestId("keep-draft").click();
   await expect(sheet).toHaveCount(0);
@@ -115,6 +125,12 @@ test("driver can verify, inspect a truck with explicit validation, review and se
   await search.fill("michelin");
   await sheet1.locator(".catalog-row").first().click();
   await expect(sheet1.getByTestId("catalog-selected")).toContainText("Michelin");
+  // When a different tire than the one recorded here is entered, the app asks whether it is a different physical tire.
+  const identity = sheet1.getByTestId("identity-prompt");
+  if (await identity.isVisible().catch(() => false)) {
+    await expect(identity).toContainText(/different physical tire/);
+    await sheet1.getByTestId("identity-replace").click();
+  }
   await page.screenshot({ path: "e2e/out/d4b-catalog-picked.png", fullPage: true });
   await sheet1.getByTestId("field-psi").click();
   await keypad(page, "108");
@@ -147,9 +163,9 @@ test("driver can verify, inspect a truck with explicit validation, review and se
       await keypad(page, "95");
       await s8.getByTestId("field-tread").click();
       await keypad(page, "4");
-      await expect(s8.getByTestId("photo-required")).toBeVisible();
+      await expect(s8.getByTestId("photo-required")).toContainText(/below your company's photo threshold \(5\/32\)/);
       await s8.getByTestId("save-tire").click();
-      await expect(s8.getByTestId("tire-errors")).toContainText(/photo is required/i);
+      await expect(s8.getByTestId("tire-errors")).toContainText(/photo is required because tread is below/i);
       await page.screenshot({ path: "e2e/out/d4-sheet.png", fullPage: true });
       await s8.getByTestId("keep-draft").click();
       await expect(page.getByTestId("progress")).toContainText("7/10");
@@ -165,9 +181,22 @@ test("driver can verify, inspect a truck with explicit validation, review and se
     }
     await enterTire(page, Number(n), psi, tread);
   }
-  // Spare 11 stays untouched: optional, never blocks.
+  // Spares are optional and never block; the driver can add a spare slot for this inspection.
+  await expect(page.getByTestId("progress")).toContainText("10/10");
+  await expect(page.locator("[data-spares] [data-tire]")).toHaveCount(1);
+  await page.getByTestId("add-spare-truck").click();
+  await expect(page.locator("[data-spares] [data-tire]")).toHaveCount(2);
   await expect(page.getByTestId("progress")).toContainText("10/10");
   await page.screenshot({ path: "e2e/out/d5-diagram-filled.png", fullPage: true });
+
+  // Feedback never interrupts the inspection.
+  await page.getByTestId("feedback-open").click();
+  await page.getByTestId("feedback-star-5").click();
+  await page.getByTestId("feedback-text").fill("e2e feedback");
+  await page.getByTestId("feedback-send").click();
+  await expect(page.getByTestId("feedback-sent")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
+  await expect(page.getByTestId("progress")).toContainText("10/10");
 
   // Edit equipment mid-inspection: adding a trailer keeps every truck reading (no warning), removing it again warns.
   await page.getByTestId("edit-equipment").click();

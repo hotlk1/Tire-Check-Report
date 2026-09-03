@@ -64,7 +64,7 @@ describe.skipIf(!DB)("inspection submission rules (database)", () => {
   const submission = (tires: TireInput[], extra: Record<string, unknown> = {}) => ({
     schemaVersion: 2 as const,
     clientDraftId: uuid(),
-    components: [{ slot: "truck" as const, kind: "truck" as const, assetId: truckId, configurationId: null }],
+    components: [{ slot: "truck" as const, kind: "truck" as const, assetId: truckId, configurationId: null, extraSpares: 0 }],
     odometer: 120000,
     tires,
     ...extra,
@@ -111,14 +111,15 @@ describe.skipIf(!DB)("inspection submission rules (database)", () => {
     const { publishThresholdVersion } = await import("./admin/thresholds");
     const { DEFAULT_THRESHOLDS } = await import("@/lib/tires/thresholds");
     const [admin] = await sql<{ id: string }[]>`select id from users where email = 'admin@dev.local'`;
-    const relaxed = { ...DEFAULT_THRESHOLDS, photoPolicy: { ...DEFAULT_THRESHOLDS.photoPolicy, treadYellow: false } };
-    await publishThresholdVersion({ actor: "admin", tenantId, userId: admin.id }, relaxed, "test: no photo for yellow tread", "test");
+    // Tenant override: drive tires need a photo under 8/32 instead of the system default 5/32.
+    const stricter = { ...DEFAULT_THRESHOLDS, photoPolicy: { ...DEFAULT_THRESHOLDS.photoPolicy, treadBelow32: { ...DEFAULT_THRESHOLDS.photoPolicy.treadBelow32, drive: 8 } } };
+    await publishThresholdVersion({ actor: "admin", tenantId, userId: admin.id }, stricter, "test: photo under 8/32 on drives", "test");
     try {
-      // Yellow tread (5/32 on a drive tire) now passes without a photo…
-      const r = await createInspection(scope(), submission(truckTires({ tire3: { tread32: 5 } })), meta);
+      // 7/32 on a drive tire now requires a photo…
+      await expect(createInspection(scope(), submission(truckTires({ tire3: { tread32: 7 } })), meta)).rejects.toMatchObject({ code: "not_ready" });
+      // …while 9/32 passes.
+      const r = await createInspection(scope(), submission(truckTires({ tire3: { tread32: 9 } })), meta);
       expect(r.requiredPhotosMissing).toBe(0);
-      // …while red tread still requires one.
-      await expect(createInspection(scope(), submission(truckTires({ tire3: { tread32: 2 } })), meta)).rejects.toMatchObject({ code: "not_ready" });
       // Statutory floor: a tenant cannot publish a steer red limit below 4/32.
       const illegal = structuredClone(DEFAULT_THRESHOLDS);
       illegal.tread32.steer.redMax = 3;
@@ -152,20 +153,34 @@ describe.skipIf(!DB)("inspection submission rules (database)", () => {
     const [e3] = await sql<{ tire_asset_id: string | null }[]>`select tire_asset_id from tire_entries where inspection_id = ${third.inspectionId} and tire_number = 1`;
     expect(e3.tire_asset_id).not.toBe(e1.tire_asset_id);
     const [old] = await sql<{ state: string; current_asset_id: string | null }[]>`select state, current_asset_id from tire_assets where id = ${e1.tire_asset_id}`;
-    expect(old).toMatchObject({ state: "unmounted", current_asset_id: null });
+    expect(old).toMatchObject({ state: "unassigned", current_asset_id: null });
     const events = await sql<{ event_type: string }[]>`select event_type::text as event_type from tire_mount_events where tire_asset_id = ${e1.tire_asset_id} order by id`;
     expect(events.map((e) => e.event_type)).toEqual(["mount", "inspected", "inspected", "replace"]);
 
-    // Admin moves the old tire to the trailer and later marks it disposed; every step is history, nothing overwritten.
+    // A driver may instead say the mounted tire's information was wrong: same tire, corrected data, history kept.
+    const corrected = truckTires().map((t, i) => (i === 0 ? { ...t, tireMake: "Bridgestone", tireModel: "R284 Ecopia", tireSize: "295/75R22.5", tireAssetId: e3.tire_asset_id, identityAction: "correct" as const } : t));
+    const fourth = await createInspection(scope(), submission(corrected), meta);
+    const [e4] = await sql<{ tire_asset_id: string | null }[]>`select tire_asset_id from tire_entries where inspection_id = ${fourth.inspectionId} and tire_number = 1`;
+    expect(e4.tire_asset_id).toBe(e3.tire_asset_id);
+    const [fixed] = await sql<{ model: string | null; state: string }[]>`select model, state from tire_assets where id = ${e3.tire_asset_id}`;
+    expect(fixed).toMatchObject({ model: "R284 Ecopia", state: "mounted" });
+    const corrEvents = await sql<{ event_type: string }[]>`select event_type::text as event_type from tire_mount_events where tire_asset_id = ${e3.tire_asset_id} order by id`;
+    expect(corrEvents.map((e) => e.event_type)).toEqual(["mount", "inspected", "correction", "inspected"]);
+
+    // Admin moves the old tire to the trailer, then into storage with a named location, then marks it disposed; every step is history.
     const [admin] = await sql<{ id: string }[]>`select id from users where email = 'admin@dev.local'`;
     const adminScope = { actor: "admin" as const, tenantId, userId: admin.id };
     await mountTire(adminScope, { tireId: e1.tire_asset_id!, assetId: trailerId, positionKey: "axle-1:LO", isSpare: false }, "Admin");
     const [moved] = await sql<{ state: string; current_asset_id: string | null; current_position_key: string | null }[]>`select state, current_asset_id, current_position_key from tire_assets where id = ${e1.tire_asset_id}`;
     expect(moved).toMatchObject({ state: "mounted", current_asset_id: trailerId, current_position_key: "axle-1:LO" });
+    await setTireState(adminScope, { tireId: e1.tire_asset_id!, state: "storage", storageLocation: "Chicago Yard" }, "Admin");
+    const [stored] = await sql<{ state: string; storage_location: string | null; current_asset_id: string | null }[]>`select state, storage_location, current_asset_id from tire_assets where id = ${e1.tire_asset_id}`;
+    expect(stored).toMatchObject({ state: "storage", storage_location: "Chicago Yard", current_asset_id: null });
     await setTireState(adminScope, { tireId: e1.tire_asset_id!, state: "disposed", note: "worn out" }, "Admin");
     const all = await sql<{ event_type: string; to_state: string | null }[]>`select event_type::text as event_type, to_state::text as to_state from tire_mount_events where tire_asset_id = ${e1.tire_asset_id} order by id`;
-    expect(all.length).toBe(6);
-    expect(all.at(-1)).toMatchObject({ event_type: "unmount", to_state: "disposed" });
+    // mount (first seen) · inspected ×2 · replace (driver) · mount on trailer (from unassigned) · unmount → storage · status → disposed
+    expect(all.map((e) => e.event_type)).toEqual(["mount", "inspected", "inspected", "replace", "mount", "unmount", "status"]);
+    expect(all.at(-1)).toMatchObject({ event_type: "status", to_state: "disposed" });
   });
 
   it("existing (legacy) inspections still load with the fixed 20-position layout", async () => {

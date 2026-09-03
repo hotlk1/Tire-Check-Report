@@ -22,7 +22,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
   const parsed = validateThresholdConfig(current.config, { statutory: false });
   const cfg: ThresholdConfig = parsed.ok ? parsed.config : DEFAULT_THRESHOLDS;
   const CLASSES = ["steer", "drive", "trailer", "spare"] as const;
-  const POLICY = Object.keys(DEFAULT_PHOTO_POLICY) as (keyof PhotoPolicy)[];
+  const POLICY = Object.keys(DEFAULT_PHOTO_POLICY).filter((k) => k !== "treadBelow32") as (keyof Omit<PhotoPolicy, "treadBelow32">)[];
   const ro = !canConfigure(session);
   const dueDays = Number(session.tenant?.settings?.inspectionDueDays) || 7;
   const error = one(sp.error);
@@ -67,6 +67,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
                 <Th right>{t("admin.settings.treadYellow")}</Th>
                 <Th right>{t("admin.settings.psiRedBelow")}</Th>
                 <Th right>{t("admin.settings.psiYellowBelow")}</Th>
+                <Th right>{t("admin.settings.psiYellowAbove")}</Th>
                 <Th right>{t("admin.settings.psiRedAbove")}</Th>
               </tr>
             </thead>
@@ -85,6 +86,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
                   </Td>
                   <Td right>
                     <Num name={`psi.${k}.yellowBelow`} value={cfg.psi[k].yellowBelow} disabled={ro} />
+                  </Td>
+                  <Td right>
+                    <Num name={`psi.${k}.yellowAbove`} value={cfg.psi[k].yellowAbove} disabled={ro} />
                   </Td>
                   <Td right>
                     <Num name={`psi.${k}.redAbove`} value={cfg.psi[k].redAbove} disabled={ro} />
@@ -111,6 +115,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
           <div className="mt-4">
             <div className="text-[12px] font-semibold text-text-2">{t("admin.settings.photoPolicy")}</div>
             <p className="mb-2 text-[12px] text-text-3">{t("admin.settings.photoPolicyHint")}</p>
+            <div className="mb-2 flex flex-wrap items-end gap-3">
+              {CLASSES.map((k) => (
+                <label key={k} className="text-[12px] text-text-2">
+                  {t("admin.settings.policy.treadBelow32", { cls: t(`admin.settings.${k}`) })}
+                  <input name={`photo.treadBelow32.${k}`} type="number" step="1" min="0" max="40" defaultValue={cfg.photoPolicy.treadBelow32[k] ?? ""} disabled={ro} className={inputCls + " h-9 w-20 text-right"} data-testid={`photo-below-${k}`} />
+                </label>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-3">
               {POLICY.map((k) => (
                 <label key={k} className="flex items-center gap-1 text-[12px] text-text-2">
@@ -159,7 +171,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
                   const x = c.ok ? c.config : DEFAULT_THRESHOLDS;
                   return (
                     <Td key={k} mono>
-                      T≤{x.tread32[k].redMax}/≤{x.tread32[k].yellowMax} · P&lt;{x.psi[k].redBelow}/&lt;{x.psi[k].yellowBelow}/&gt;{x.psi[k].redAbove}
+                      T≤{x.tread32[k].redMax}/≤{x.tread32[k].yellowMax} · P&lt;{x.psi[k].redBelow}/&lt;{x.psi[k].yellowBelow}/&gt;{x.psi[k].yellowAbove}/&gt;{x.psi[k].redAbove}
                     </Td>
                   );
                 })}

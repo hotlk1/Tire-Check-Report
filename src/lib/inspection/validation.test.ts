@@ -14,8 +14,11 @@ describe("tireSaveIssues (explicit save validation)", () => {
     expect(tireSaveIssues(r(3, null, null), pos(3), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["psi_required", "tread_required"]);
     expect(tireSaveIssues(r(3, 100, null, { damage: "repairable" }), pos(3), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["tread_required", "photo_required_damaged"]);
     expect(tireSaveIssues(r(3, 100, 12, { damage: "non_repairable" }), pos(3), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["photo_required_oos"]);
-    expect(tireSaveIssues(r(3, 100, 4), pos(3), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["photo_required_tread"]);
+    expect(tireSaveIssues(r(3, 100, 4), pos(3), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["photo_required_tread_threshold"]);
+    expect(tireSaveIssues(r(3, 100, 5), pos(3), DEFAULT_THRESHOLDS)).toEqual([]);
     expect(tireSaveIssues(r(3, 100, 4, { photoCount: 1 }), pos(3), DEFAULT_THRESHOLDS)).toEqual([]);
+    const colour = { ...DEFAULT_THRESHOLDS, photoPolicy: { ...DEFAULT_THRESHOLDS.photoPolicy, treadYellow: true } };
+    expect(tireSaveIssues(r(3, 100, 6), pos(3), colour).map((i) => i.code)).toEqual(["photo_required_tread"]);
   });
   it("spares need tread only; PSI policy trigger honoured", () => {
     expect(tireSaveIssues(r(11, null, null), pos(11), DEFAULT_THRESHOLDS).map((i) => i.code)).toEqual(["tread_required"]);

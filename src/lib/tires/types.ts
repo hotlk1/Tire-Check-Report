@@ -57,6 +57,8 @@ export interface TireEvaluation {
   /** Spare declared absent (legacy). */
   absent: boolean;
   photoRequired: boolean;
+  /** Why a photo is required (policy trigger), null when not required. */
+  photoReason: "damaged" | "oos" | "tread_threshold" | "tread_status" | "psi_status" | null;
   photoMissing: boolean;
   /** Which required inputs are missing, for explicit UI messages. */
   missing: MissingInput[];

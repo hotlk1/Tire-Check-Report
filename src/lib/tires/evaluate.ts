@@ -1,5 +1,5 @@
 import type { InspectionLayout, LayoutAxle, LayoutPosition } from "@/lib/equipment/layout";
-import { DEFAULT_THRESHOLDS, dualTreadMatches, photoRequiredBy, psiDiffStatus, psiStatus, treadStatus, worstStatus, type ThresholdConfig } from "./thresholds";
+import { DEFAULT_THRESHOLDS, dualTreadMatches, photoReasonBy, psiDiffStatus, psiStatus, treadStatus, worstStatus, type ThresholdConfig } from "./thresholds";
 import type { AxleComparison, DualPairComparison, InspectionEvaluation, MissingInput, Status, TireEvaluation, TireReading } from "./types";
 
 /**
@@ -15,7 +15,7 @@ export function isTouched(r: TireReading | undefined): boolean {
 export function evaluateTire(reading: TireReading, pos: LayoutPosition, config: ThresholdConfig = DEFAULT_THRESHOLDS): TireEvaluation {
   const base = { key: pos.key, number: pos.number };
   if (pos.isSpare && reading.absent) {
-    return { ...base, psiStatus: "none", treadStatus: "none", damageStatus: "none", overall: "none", complete: true, touched: true, absent: true, photoRequired: false, photoMissing: false, missing: [] };
+    return { ...base, psiStatus: "none", treadStatus: "none", damageStatus: "none", overall: "none", complete: true, touched: true, absent: true, photoRequired: false, photoReason: null, photoMissing: false, missing: [] };
   }
   const tStatus = treadStatus(reading.tread32, pos.positionClass, config);
   const pStatus = pos.requiresPsi || reading.psi !== null ? psiStatus(reading.psi, pos.positionClass, config) : "none";
@@ -24,7 +24,8 @@ export function evaluateTire(reading: TireReading, pos: LayoutPosition, config: 
   const missing: MissingInput[] = [];
   if (pos.requiresPsi && (reading.psi === null || reading.psi === undefined)) missing.push("psi");
   if (reading.tread32 === null || reading.tread32 === undefined) missing.push("tread");
-  const photoRequired = photoRequiredBy(config.photoPolicy, { damage: reading.damage, treadStatus: tStatus, psiStatus: pStatus });
+  const photoReason = photoReasonBy(config.photoPolicy, { damage: reading.damage, treadStatus: tStatus, psiStatus: pStatus, tread32: reading.tread32, cls: pos.positionClass });
+  const photoRequired = photoReason !== null;
   const photoMissing = photoRequired && reading.photoCount === 0;
   if (photoMissing) missing.push("photo");
 
@@ -32,7 +33,7 @@ export function evaluateTire(reading: TireReading, pos: LayoutPosition, config: 
   const complete = readingsComplete && !photoMissing;
   const overall: Status = readingsComplete ? worstStatus(tStatus, pStatus, damageStatus, "green") : damageStatus !== "none" ? damageStatus : "none";
 
-  return { ...base, psiStatus: pStatus, treadStatus: tStatus, damageStatus, overall, complete, touched: isTouched(reading), absent: false, photoRequired, photoMissing, missing };
+  return { ...base, psiStatus: pStatus, treadStatus: tStatus, damageStatus, overall, complete, touched: isTouched(reading), absent: false, photoRequired, photoReason, photoMissing, missing };
 }
 
 function mean(values: number[]): number | null {

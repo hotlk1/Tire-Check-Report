@@ -30,13 +30,19 @@ describe("evaluateTire", () => {
   });
   it("photo rules follow the policy and make the tire incomplete until satisfied", () => {
     expect(evaluateTire(r(3, 102, 10), pos(3)).photoRequired).toBe(false);
-    const low = evaluateTire(r(3, 102, 5), pos(3));
+    // Yellow tread alone (5/32 on a drive) needs no photo by default; under 5/32 does, independent of colour.
+    expect(evaluateTire(r(3, 102, 5), pos(3)).photoRequired).toBe(false);
+    const low = evaluateTire(r(3, 102, 4), pos(3));
     expect(low.photoRequired).toBe(true);
+    expect(low.photoReason).toBe("tread_threshold");
     expect(low.photoMissing).toBe(true);
     expect(low.complete).toBe(false);
     expect(low.missing).toEqual(["photo"]);
-    expect(evaluateTire(r(3, 102, 5, { photoCount: 1 }), pos(3)).complete).toBe(true);
-    expect(evaluateTire(r(3, 102, 12, { damage: "repairable" }), pos(3)).photoRequired).toBe(true);
+    expect(evaluateTire(r(3, 102, 4, { photoCount: 1 }), pos(3)).complete).toBe(true);
+    // Steer: under 3/32.
+    expect(evaluateTire(r(1, 108, 3), pos(1)).photoRequired).toBe(false);
+    expect(evaluateTire(r(1, 108, 2), pos(1)).photoReason).toBe("tread_threshold");
+    expect(evaluateTire(r(3, 102, 12, { damage: "repairable" }), pos(3)).photoReason).toBe("damaged");
     // tenant policy override: PSI red also needs a photo, repairable damage does not
     const policy = { ...DEFAULT_THRESHOLDS, photoPolicy: { ...DEFAULT_THRESHOLDS.photoPolicy, psiRed: true, damagedRepairable: false } };
     expect(evaluateTire(r(3, 60, 12), pos(3), policy).photoRequired).toBe(true);
@@ -101,7 +107,7 @@ describe("evaluateInspection + blockingIssues", () => {
   });
 
   it("blocks on missing odometer, tire readings, and photos", () => {
-    const readings = { ...truckAllGood, 5: r(5, 102, 4, {}, TRUCK), 7: r(7, null, 12, {}, TRUCK) };
+    const readings = { ...truckAllGood, 5: r(5, 102, 3, {}, TRUCK), 7: r(7, null, 12, {}, TRUCK) };
     const issues = blockingIssues({ layout: TRUCK, odometer: null, readings });
     expect(issues).toContainEqual({ kind: "odometer_required", slot: "truck" });
     expect(issues).toContainEqual({ kind: "tire_incomplete", tire: 7, missing: ["psi"] });
@@ -120,12 +126,12 @@ describe("evaluateInspection + blockingIssues", () => {
   it("photo is mandatory for damaged, low-tread and OOS tires by default", () => {
     const base = { layout: TRUCK, odometer: 1 };
     const damaged = { ...truckAllGood, 3: r(3, 102, 12, { damage: "repairable" }, TRUCK) };
-    const low = { ...truckAllGood, 4: r(4, 102, 5, {}, TRUCK) };
+    const low = { ...truckAllGood, 4: r(4, 102, 4, {}, TRUCK) };
     const oos = { ...truckAllGood, 5: r(5, 102, 12, { damage: "non_repairable" }, TRUCK) };
     expect(blockingIssues({ ...base, readings: damaged })).toContainEqual({ kind: "photo_required", tire: 3 });
     expect(blockingIssues({ ...base, readings: low })).toContainEqual({ kind: "photo_required", tire: 4 });
     expect(blockingIssues({ ...base, readings: oos })).toContainEqual({ kind: "photo_required", tire: 5 });
-    const ok = { ...truckAllGood, 3: r(3, 102, 12, { damage: "repairable", photoCount: 1 }, TRUCK), 4: r(4, 102, 5, { photoCount: 1 }, TRUCK), 5: r(5, 102, 12, { damage: "non_repairable", photoCount: 2 }, TRUCK) };
+    const ok = { ...truckAllGood, 3: r(3, 102, 12, { damage: "repairable", photoCount: 1 }, TRUCK), 4: r(4, 102, 4, { photoCount: 1 }, TRUCK), 5: r(5, 102, 12, { damage: "non_repairable", photoCount: 2 }, TRUCK) };
     expect(blockingIssues({ ...base, readings: ok })).toEqual([]);
   });
 

@@ -113,7 +113,7 @@ export async function createInspection(scope: Scope & { actor: "driver"; tenantI
     const tireIds = await reconcileTireIdentity(tx, scope.tenantId, {
       inspectionId: ins.id,
       layout,
-      tires: sub.tires.map((t) => ({ key: t.key, number: t.number, tireVariantId: t.tireVariantId ?? null, tireMake: t.tireMake ?? null, tireModel: t.tireModel ?? null, tireSize: t.tireSize ?? null, tireAssetId: t.tireAssetId ?? null, tread32: t.tread32, psi: t.psi, damage: t.damage })),
+      tires: sub.tires.map((t) => ({ key: t.key, number: t.number, tireVariantId: t.tireVariantId ?? null, tireMake: t.tireMake ?? null, tireModel: t.tireModel ?? null, tireSize: t.tireSize ?? null, tireAssetId: t.tireAssetId ?? null, identityAction: t.identityAction ?? null, tread32: t.tread32, psi: t.psi, damage: t.damage })),
       actor: { driverId: scope.driverId, label: meta.driverName },
       variantIds,
     });

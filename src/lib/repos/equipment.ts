@@ -64,7 +64,7 @@ export interface ResolvedComponent extends LayoutComponentInput {
  * Resolves the components of a submission to their assets and current
  * configurations (server side; never trusts the client's configuration).
  */
-export async function resolveComponents(tx: Tx, tenantId: string, components: { slot: ComponentSlot; kind: ComponentKind; assetId: string }[]): Promise<{ ok: true; components: ResolvedComponent[] } | { ok: false; slot: ComponentSlot; reason: "asset_not_found" | "kind_mismatch" }> {
+export async function resolveComponents(tx: Tx, tenantId: string, components: { slot: ComponentSlot; kind: ComponentKind; assetId: string; extraSpares?: number }[]): Promise<{ ok: true; components: ResolvedComponent[] } | { ok: false; slot: ComponentSlot; reason: "asset_not_found" | "kind_mismatch" }> {
   const out: ResolvedComponent[] = [];
   for (const c of components) {
     const [asset] = await tx<{ id: string; unit_number: string; type: ComponentKind; make: string | null; model: string | null; year: number | null }[]>`
@@ -82,6 +82,7 @@ export async function resolveComponents(tx: Tx, tenantId: string, components: { 
       configurationId: cfg?.id ?? null,
       configVersion: cfg?.version ?? null,
       config: cfg?.config ?? defaultConfigFor(asset.type),
+      extraSpares: c.extraSpares ?? 0,
     });
   }
   return { ok: true, components: out };

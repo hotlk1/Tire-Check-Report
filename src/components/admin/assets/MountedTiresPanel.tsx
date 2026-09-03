@@ -56,7 +56,7 @@ export function MountedTiresPanel({ t, assetId, kind, config, tires, canEdit }: 
                       <label className="col-span-2 text-text-2">
                         {t("admin.assets.oldTireState")}
                         <select name="oldState" defaultValue="removed" className={selectCls + " h-8"}>
-                          {(["removed", "unmounted", "damaged", "disposed", "lost"] as const).map((s) => (
+                          {(["storage", "unassigned", "damaged", "disposed", "lost"] as const).map((s) => (
                             <option key={s} value={s}>{t(`admin.tireAssets.states.${s}`)}</option>
                           ))}
                         </select>
@@ -67,13 +67,13 @@ export function MountedTiresPanel({ t, assetId, kind, config, tires, canEdit }: 
                   {tire ? (
                     <div className="grid gap-1.5 text-[12px]">
                       <div className="font-semibold text-text-2">{tire.code}</div>
-                      {(["unmounted", "damaged", "lost", "disposed"] as const).map((s) => (
+                      {(["storage", "unassigned", "damaged", "lost", "disposed"] as const).map((s) => (
                         <form key={s} action={setTireStateAction}>
                           <input type="hidden" name="tireId" value={tire.id} />
                           <input type="hidden" name="state" value={s} />
                           <input type="hidden" name="return" value={returnTo} />
                           <button type="submit" className={btnSecondary + " h-8 w-full"}>
-                            {t(s === "unmounted" ? "admin.assets.removeTire" : s === "damaged" ? "admin.assets.markDamaged" : s === "lost" ? "admin.assets.markLost" : "admin.assets.markDisposed")}
+                            {t(s === "unassigned" ? "admin.assets.removeTire" : s === "storage" ? "admin.tireAssets.states.storage" : s === "damaged" ? "admin.assets.markDamaged" : s === "lost" ? "admin.assets.markLost" : "admin.assets.markDisposed")}
                           </button>
                         </form>
                       ))}
