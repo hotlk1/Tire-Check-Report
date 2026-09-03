@@ -63,14 +63,55 @@ test("admin can sign in, see the dashboard, edit a report, manage drivers and pu
   await page.waitForURL(/\/admin\/trucks\/[0-9a-f-]+\?saved=1/);
   await expect(page.getByRole("heading", { name: unit })).toBeVisible();
 
+  // Axle configuration: publish a pusher-axle layout from a template, then a second version with an added axle.
+  await page.getByTestId("config-template").selectOption("tractor-pusher");
+  await page.getByTestId("publish-config").click();
+  await page.waitForURL(/saved=1/);
+  await expect(page.getByText("Version 1").first()).toBeVisible();
+  await expect(page.getByText(/4 axle\(s\) · 14 tires · 1 spare/).first()).toBeVisible();
+  await page.getByTestId("add-axle").click();
+  await page.getByTestId("spare-count").fill("0");
+  await page.getByTestId("publish-config").click();
+  await page.waitForURL(/saved=1/);
+  await expect(page.getByText("Version 2").first()).toBeVisible();
+  await expect(page.getByText(/5 axle\(s\) · 18 tires · 0 spare/).first()).toBeVisible();
+  await expect(page.getByTestId("mounted-pusher-1:LO")).toBeVisible();
+  await page.screenshot({ path: "e2e/out/a4-configuration.png", fullPage: true });
+
+  // Physical tires: register one, mount it on the new truck, move it, mark it disposed — every step is history.
+  await page.goto("/admin/tires/assets?register=1");
+  await page.getByTestId("tire-make").fill("E2E Brand");
+  await page.getByRole("button", { name: "Save" }).click();
+  await page.waitForURL(/\/admin\/tires\/assets\/[0-9a-f-]+\?saved=1/);
+  await page.locator('[data-testid="mount-form"] select[name="assetId"]').selectOption({ label: `${unit} (truck)` });
+  await page.locator('[data-testid="mount-form"] input[name="positionKey"]').fill("drive-1:LO");
+  await page.getByTestId("mount-form").getByRole("button", { name: "Mount on a unit" }).click();
+  await page.waitForURL(/saved=1/);
+  await expect(page.getByText(/Mounted · .*drive-1:LO/).first()).toBeVisible();
+  await page.locator('[data-testid="mount-form"] input[name="positionKey"]').fill("drive-2:RO");
+  await page.getByTestId("mount-form").getByRole("button", { name: "Move" }).click();
+  await page.waitForURL(/saved=1/);
+  await page.getByTestId("state-disposed").click();
+  await page.waitForURL(/saved=1/);
+  await expect(page.getByText("Disposed").first()).toBeVisible();
+  await expect(page.locator("tbody tr")).toHaveCount(4); // registered, mount, move, unmount→disposed
+  await page.screenshot({ path: "e2e/out/a5-tire-asset.png", fullPage: true });
+
   // Settings: publish a new threshold version and see it in the history + audit
   await page.goto("/admin/settings");
   await page.locator('input[name="tread.steer.yellowMax"]').fill("9");
+  await page.getByTestId("photo-psiRed").check();
   await page.locator('input[name="note"]').fill("e2e change");
   await page.getByTestId("publish-thresholds").click();
   await page.waitForURL(/saved=1/);
   await expect(page.getByText("e2e change").first()).toBeVisible();
   await expect(page.getByText(/JGG v\d+/).first()).toBeVisible();
+  await expect(page.getByTestId("photo-psiRed")).toBeChecked();
+  // Statutory floor: a steer red limit below 4/32 is refused with an explanation.
+  await page.locator('input[name="tread.steer.redMax"]').fill("3");
+  await page.getByTestId("publish-thresholds").click();
+  await page.waitForURL(/error=/);
+  await expect(page.getByText(/statutory/)).toBeVisible();
   await page.screenshot({ path: "e2e/out/a3-settings.png", fullPage: true });
 
   // Tenant switch (super admin) → ZSP shows its own data only

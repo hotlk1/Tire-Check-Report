@@ -1,4 +1,4 @@
-import { toSubmission, type InspectionDraft } from "@/lib/inspection/draft";
+import { draftLayout, toSubmission, type InspectionDraft } from "@/lib/inspection/draft";
 import { getPhoto, listDraftsByStatus, saveDraft, savePhoto } from "./db";
 
 /**
@@ -12,7 +12,8 @@ export type SyncResult = { ok: true; inspectionId: string; pendingPhotos: number
 let running = false;
 
 export async function syncDraft(draft: InspectionDraft): Promise<SyncResult> {
-  if (!draft.mode) return { ok: false, error: "mode_missing", retryable: false };
+  const layout = draftLayout(draft);
+  if (!layout || !draft.components.some((c) => c.asset)) return { ok: false, error: "equipment_missing", retryable: false };
   let inspectionId = draft.inspectionId;
 
   draft.status = "submitting";
@@ -25,7 +26,7 @@ export async function syncDraft(draft: InspectionDraft): Promise<SyncResult> {
       const res = await fetch("/api/inspections", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(toSubmission(draft, { locale: navigator.language, userAgent: navigator.userAgent.slice(0, 300), appVersion: "phase1" })),
+        body: JSON.stringify(toSubmission(draft, layout, { locale: navigator.language, userAgent: navigator.userAgent.slice(0, 300), appVersion: "phase2-config" })),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; inspectionId?: string; error?: string; issues?: unknown };
       if (!res.ok || !data.ok || !data.inspectionId) {
@@ -43,6 +44,8 @@ export async function syncDraft(draft: InspectionDraft): Promise<SyncResult> {
 
     let pending = 0;
     for (const tire of Object.values(draft.tires)) {
+      const pos = layout.positions.find((p) => p.key === tire.key);
+      if (!pos) continue;
       for (const photoId of tire.photoIds) {
         const photo = await getPhoto(photoId);
         if (!photo) continue; // photo lost locally – nothing we can do
@@ -50,7 +53,7 @@ export async function syncDraft(draft: InspectionDraft): Promise<SyncResult> {
         const form = new FormData();
         form.set("file", photo.blob, `${photoId}.jpg`);
         form.set("clientPhotoId", photoId);
-        form.set("tireNumber", String(tire.number));
+        form.set("tireNumber", String(pos.number));
         form.set("takenAt", photo.createdAt);
         if (photo.width) form.set("width", String(photo.width));
         if (photo.height) form.set("height", String(photo.height));

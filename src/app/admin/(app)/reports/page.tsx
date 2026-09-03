@@ -106,7 +106,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/admin/re
                 </Td>
                 <Td right>{r.photos_uploaded}</Td>
                 <Td>
-                  {r.status === "deleted" ? t("admin.reports.deleted") : r.edited_at ? t("admin.reports.edited") : "✓"}
+                  {r.status === "deleted" ? t("admin.reports.deleted") : r.status === "pending_photos" ? <span className="rounded-md bg-status-red-soft px-1.5 py-0.5 text-[11px] font-semibold text-status-red">{t("admin.reports.pendingPhotos")}</span> : r.edited_at ? t("admin.reports.edited") : "✓"}
                 </Td>
               </tr>
             ))}

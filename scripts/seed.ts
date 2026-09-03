@@ -7,6 +7,7 @@
  * --dev:  sample drivers and assets for local development ONLY.
  */
 import postgres from "postgres";
+import { templateByKey } from "../src/lib/equipment/templates";
 import { DEFAULT_THRESHOLDS } from "../src/lib/tires/thresholds";
 
 const args = process.argv.slice(2);
@@ -68,6 +69,17 @@ async function main() {
           await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source)
                    values (${t.id}, 'trailer', ${u}, 'Utility', '3000R', 2021, 'manual')
                    on conflict (tenant_id, type, unit_number) do nothing`;
+        }
+        // Heavy-haul components and a non-standard tractor configuration (pusher axle) for testing layouts.
+        for (const [type, u, make, model] of [["jeep", "J-1", "Trail King", "Jeep 2-axle"], ["dolly", "D-1", "Trail King", "Dolly"], ["booster", "B-1", "Trail King", "Booster 2-axle"]] as const) {
+          await tx`insert into assets (tenant_id, type, unit_number, make, model, year, source) values (${t.id}, ${type}, ${u}, ${make}, ${model}, 2020, 'manual') on conflict (tenant_id, type, unit_number) do nothing`;
+        }
+        const [pusherTruck] = await tx<{ id: string }[]>`select id from assets where tenant_id = ${t.id} and type = 'truck' and unit_number = ${prefix + "-T102"}`;
+        if (pusherTruck) {
+          const cfg = templateByKey("tractor-pusher")!.config;
+          await tx`insert into asset_configurations (tenant_id, asset_id, version, config, template_key, note)
+                   select ${t.id}, ${pusherTruck.id}, 1, ${tx.json(cfg as unknown as postgres.JSONValue)}, 'tractor-pusher', 'Dev seed: pusher axle'
+                   where not exists (select 1 from asset_configurations where asset_id = ${pusherTruck.id})`;
         }
       }
       // Development admin users (dev login only; in production users come from Supabase Auth).

@@ -3,7 +3,7 @@ import { getServerTranslator } from "@/i18n/server";
 import { canConfigure, requireAdmin } from "@/lib/auth/session";
 import { listAudit } from "@/lib/repos/admin/reports";
 import { listThresholdVersions } from "@/lib/repos/admin/thresholds";
-import type { ThresholdConfig } from "@/lib/tires/thresholds";
+import { DEFAULT_PHOTO_POLICY, DEFAULT_THRESHOLDS, STATUTORY_MIN_TREAD_32, validateThresholdConfig, type PhotoPolicy, type ThresholdConfig } from "@/lib/tires/thresholds";
 import { publishThresholdsAction, saveGeneralAction } from "./actions";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -19,7 +19,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
   const page = Math.max(1, Number(one(sp.apage)) || 1);
   const [versions, audit] = await Promise.all([listThresholdVersions(session.scope), listAudit(session.scope, { page, pageSize: 50 })]);
   const current = versions[0];
-  const cfg: ThresholdConfig = current.config;
+  const parsed = validateThresholdConfig(current.config, { statutory: false });
+  const cfg: ThresholdConfig = parsed.ok ? parsed.config : DEFAULT_THRESHOLDS;
+  const CLASSES = ["steer", "drive", "trailer", "spare"] as const;
+  const POLICY = Object.keys(DEFAULT_PHOTO_POLICY) as (keyof PhotoPolicy)[];
   const ro = !canConfigure(session);
   const dueDays = Number(session.tenant?.settings?.inspectionDueDays) || 7;
   const error = one(sp.error);
@@ -53,7 +56,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
         }
         className="mb-4"
       >
-        <p className="mb-3 text-[12px] text-text-3">{t("admin.settings.thresholdsHint")}</p>
+        <p className="mb-1 text-[12px] text-text-3">{t("admin.settings.thresholdsHint")} {current.tenant_id ? "" : t("admin.settings.systemDefaults")}</p>
+        <p className="mb-3 text-[12px] text-text-3">{t("admin.settings.statutory", { steer: STATUTORY_MIN_TREAD_32.steer, other: STATUTORY_MIN_TREAD_32.drive })}</p>
         <form action={publishThresholdsAction}>
           <Table>
             <thead>
@@ -67,7 +71,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
               </tr>
             </thead>
             <tbody>
-              {(["steer", "drive", "trailer"] as const).map((k) => (
+              {CLASSES.map((k) => (
                 <tr key={k}>
                   <Td className="font-semibold">{t(`admin.settings.${k}`)}</Td>
                   <Td right>
@@ -104,6 +108,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
               <Num name="axle.dualTreadMismatch" value={cfg.axle.dualTreadMismatch} disabled={ro} />
             </label>
           </div>
+          <div className="mt-4">
+            <div className="text-[12px] font-semibold text-text-2">{t("admin.settings.photoPolicy")}</div>
+            <p className="mb-2 text-[12px] text-text-3">{t("admin.settings.photoPolicyHint")}</p>
+            <div className="flex flex-wrap gap-3">
+              {POLICY.map((k) => (
+                <label key={k} className="flex items-center gap-1 text-[12px] text-text-2">
+                  <input type="checkbox" name={`photo.${k}`} defaultChecked={cfg.photoPolicy[k]} disabled={ro} data-testid={`photo-${k}`} /> {t(`admin.settings.policy.${k}`)}
+                </label>
+              ))}
+            </div>
+          </div>
           {!ro ? (
             <div className="mt-3 flex flex-wrap items-end gap-2">
               <label className="text-[12px] text-text-2">
@@ -139,11 +154,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
                 <Td>{fmtDate(v.created_at, locale)}</Td>
                 <Td>{v.created_by_name ?? v.created_by_email ?? "—"}</Td>
                 <Td>{v.note ?? "—"}</Td>
-                {(["steer", "drive", "trailer"] as const).map((k) => (
-                  <Td key={k} mono>
-                    T≤{v.config.tread32[k].redMax}/≤{v.config.tread32[k].yellowMax} · P&lt;{v.config.psi[k].redBelow}/&lt;{v.config.psi[k].yellowBelow}/&gt;{v.config.psi[k].redAbove}
-                  </Td>
-                ))}
+                {(["steer", "drive", "trailer"] as const).map((k) => {
+                  const c = validateThresholdConfig(v.config, { statutory: false });
+                  const x = c.ok ? c.config : DEFAULT_THRESHOLDS;
+                  return (
+                    <Td key={k} mono>
+                      T≤{x.tread32[k].redMax}/≤{x.tread32[k].yellowMax} · P&lt;{x.psi[k].redBelow}/&lt;{x.psi[k].yellowBelow}/&gt;{x.psi[k].redAbove}
+                    </Td>
+                  );
+                })}
                 <Td mono>
                   Δ≥{v.config.axle.psiDiffYellow}/≥{v.config.axle.psiDiffRed} · ≠≥{v.config.axle.dualTreadMismatch}
                 </Td>

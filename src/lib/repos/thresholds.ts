@@ -20,6 +20,6 @@ export async function activeThresholdVersion(tx: Tx, tenantId: string): Promise<
     limit 1`;
   const row = rows[0];
   if (!row) throw new Error("No threshold version found – run scripts/seed.ts");
-  const v = validateThresholdConfig(row.config);
+  const v = validateThresholdConfig(row.config, { statutory: false });
   return { ...row, config: v.ok ? v.config : DEFAULT_THRESHOLDS };
 }

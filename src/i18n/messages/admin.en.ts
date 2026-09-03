@@ -1,7 +1,7 @@
 /** Admin/desktop strings (merged into the `admin` namespace of each locale). */
 export const adminEn = {
   nav: {
-    dashboard: "Dashboard",
+    equipment: "Equipment", tireAssets: "Physical tires", dashboard: "Dashboard",
     tireCheck: "Tire Check",
     reports: "Reports",
     trucks: "Trucks",
@@ -100,7 +100,7 @@ export const adminEn = {
     qr: "QR code",
   },
   reports: {
-    title: "Reports",
+    pendingPhotos: "Awaiting required photos", title: "Reports",
     columns: { date: "Date", driver: "Driver", truck: "Truck", trailer: "Trailer", odometer: "Odometer", red: "Red", yellow: "Yellow", photos: "Photos", status: "Status" },
     filters: { status: "Tire status", driver: "Driver", asset: "Unit", period: "Period" },
     onlyIssues: "Only with issues",
@@ -124,7 +124,7 @@ export const adminEn = {
     tireNotes: "Tire notes",
   },
   assets: {
-    trucks: "Trucks",
+    equipment: "Heavy-haul equipment", addKind: "Add {kind}", configuration: "Axle configuration", configurationHint: "Configure once; drivers only pick the unit. Each change is a new immutable version and past inspections keep the version they used.", template: "Template", currentVersion: "Version {version}", defaultTemplate: "Default layout (not configured yet)", axle: "Axle", role: "Role", wheels: "Wheels", liftable: "Lift axle", spares: "Spare slots", addAxle: "Add axle", removeAxle: "Remove", publishConfig: "Publish configuration", configHistory: "Configuration history", wheelsSingle: "Single", wheelsDual: "Dual", wheelsSuperSingle: "Super single", mountedTires: "Mounted tires", mountedHint: "Physical tires by position. Every action adds to the tire's history; nothing is overwritten.", noTire: "No tire recorded", replace: "Replace", move: "Move", removeTire: "Remove", markDamaged: "Mark damaged", markLost: "Mark lost", markDisposed: "Mark disposed", oldTireState: "Old tire becomes", newTire: "New tire", moveTo: "Move to", note: "Note", trucks: "Trucks",
     trailers: "Trailers",
     unit: "Unit #",
     vin: "VIN",
@@ -148,7 +148,7 @@ export const adminEn = {
     positionTrend: "Tread by position over time",
   },
   tires: {
-    title: "Tires",
+    physicalTire: "Physical tire", positionKey: "Position (any unit)", title: "Tires",
     subtitle: "Every tire reading, across inspections",
     columns: { date: "Date", unit: "Unit", tire: "Tire", position: "Position", psi: "PSI", tread: "Tread", damage: "Damage", status: "Status", driver: "Driver" },
     filters: { status: "Status", position: "Position", unit: "Unit" },
@@ -216,6 +216,7 @@ export const adminEn = {
     },
     usedIn: "Used in readings",
   },
+  tireAssets: { title: "Physical tires", subtitle: "Every tire we know about, with its current location and history", code: "Tire ID", state: "State", states: { mounted: "Mounted", spare: "Spare (mounted)", unmounted: "Unmounted", damaged: "Damaged", removed: "Removed", disposed: "Disposed", lost: "Lost" }, location: "Location", lastReading: "Last reading", history: "History", events: { mount: "Mounted", unmount: "Unmounted", move: "Moved", replace: "Replaced", status: "Status change", inspected: "Inspected" }, inspections: "Inspections", register: "Register tire", registerHint: "A tire not mounted anywhere (stock / spare inventory).", mount: "Mount on a unit", unit: "Unit", position: "Position", serial: "Serial / DOT", noTires: "No physical tires yet. They are created automatically when drivers enter brand, model or size, or register one here.", from: "from", to: "to" },
   tickets: {
     title: "Service Tickets",
     phase3: "Service tickets are stored in the database first and pushed to Asana / Airtable / Telegram in Phase 3. The table and API contract exist; the UI arrives with Phase 3.",
@@ -225,15 +226,15 @@ export const adminEn = {
     phase3: "Per-tenant telematics (Samsara first, then Motive / Geotab) and Airtable export are implemented in Phase 3. Credentials are stored encrypted per tenant, never in environment variables.",
   },
   settings: {
-    title: "Settings",
+    spare: "Spare", photoPolicy: "Photo requirements", photoPolicyHint: "When a photo is mandatory before a tire counts as complete. Enforced on the phone and again on the server.", policy: { damagedRepairable: "Damaged (repairable)", damagedOos: "Damaged / out of service", treadYellow: "Yellow tread", treadRed: "Red tread", psiYellow: "Yellow PSI", psiRed: "Red PSI" }, statutory: "Statutory minimum tread: steer {steer}/32, all other positions {other}/32. Red limits cannot be set below these; stricter is allowed.", systemDefaults: "System defaults apply until you publish a tenant version.", title: "Settings",
     thresholds: "Tire thresholds",
     thresholdsHint: "Every change creates a new immutable version. Inspections keep the version that classified them.",
     current: "Current version",
     system: "System default",
     tenantVersion: "{tenant} v{version}",
-    steer: "Steer (1–2)",
-    drive: "Drive (3–10)",
-    trailer: "Trailer (11–18)",
+    steer: "Steer",
+    drive: "Drive",
+    trailer: "Trailer / non-steer",
     treadRed: "Red ≤ (32nds)",
     treadYellow: "Yellow ≤ (32nds)",
     psiRedBelow: "Red below (PSI)",

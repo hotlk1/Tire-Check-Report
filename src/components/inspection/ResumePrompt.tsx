@@ -6,7 +6,7 @@ import type { InspectionDraft } from "@/lib/inspection/draft";
 export function ResumePrompt({ draft, onResume, onStartNew }: { draft: InspectionDraft; onResume: () => void; onStartNew: () => void }) {
   const { t, locale } = useI18n();
   const when = new Date(draft.updatedAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short" });
-  const units = [draft.truck?.unitNumber, draft.trailer?.unitNumber].filter(Boolean).join(" · ");
+  const units = draft.components.map((c) => c.asset?.unitNumber).filter(Boolean).join(" · ");
   return (
     <div className="mx-auto w-full max-w-md flex-1 overflow-auto" style={{ padding: "32px 20px", minHeight: 0 }}>
       <div className="card" style={{ padding: 20 }}>

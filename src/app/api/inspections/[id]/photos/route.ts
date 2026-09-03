@@ -10,7 +10,7 @@ const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const fieldsSchema = z.object({
   clientPhotoId: z.string().uuid(),
-  tireNumber: z.coerce.number().int().min(1).max(20).nullable().optional(),
+  tireNumber: z.coerce.number().int().min(1).max(200).nullable().optional(),
   takenAt: z.string().datetime({ offset: true }).nullable().optional(),
   width: z.coerce.number().int().positive().nullable().optional(),
   height: z.coerce.number().int().positive().nullable().optional(),

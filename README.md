@@ -83,6 +83,46 @@ that origin and add the redirect URLs `https://<origin>/auth/callback`,
 redirect is ever not allowed, Supabase falls back to the Site URL and the proxy routes the
 `?code=` it delivers into `/auth/callback` on the same host.
 
+## Equipment configuration, physical tires and rules
+
+**Equipment configuration.** Tire positions are no longer a fixed 1–20 list. Every asset
+(truck, trailer, jeep, dolly, booster) carries a versioned configuration
+(`asset_configurations`: ordered axles with role and single/dual/super-single wheels,
+plus any number of spare slots). Assets without one use the built-in default template
+for their kind (standard tractor, 2-axle trailer, …); admins publish a configuration on
+the asset page (Trucks / Trailers / Equipment) from a template plus edits. Built-in
+templates live in `src/lib/equipment/templates.ts`. An inspection covers one or more
+components (Truck / Trailer / Truck + Trailer, plus "Add equipment" for jeep, dolly,
+booster or a second trailer); its numbered layout is built in road order by
+`src/lib/equipment/layout.ts` and stored on the inspection (`inspections.equipment`), so
+reports never renumber when equipment is reconfigured. Readings are keyed by layout
+position (`truck/drive-1:LO`); the tire number is a display label. Inspections submitted
+before this model existed have no snapshot and render with the legacy 20-position layout.
+
+**Physical tires.** A wheel position is a location; a `tire_assets` row is the tire
+occupying it (internal id `T000123` until serial/QR workflows exist), with a lifecycle
+state (mounted, spare, unmounted, damaged, removed, disposed, lost) and an append-only
+history in `tire_mount_events`. At submission the server reconciles identity per
+position: a mounted tire with matching (or no) brand/model/size input carries forward,
+a different tire recorded at the position replaces it, a first-time identity creates
+the tire. Admins replace, move, remove and mark tires from the asset page or
+Tires → Physical tires.
+
+**Rules (thresholds + photo policy).** System defaults are the `threshold_versions` row
+with tenant_id NULL; a tenant override is a new tenant row published from Settings. The
+document (schema 2) holds PSI and tread green/yellow/red rules per class (steer, drive,
+trailer/non-steer, spare), the axle comparison limits and the photo policy (damaged
+repairable, damaged/OOS, yellow/red tread, yellow/red PSI). Red tread limits cannot go
+below the statutory minimum (steer 4/32, others 2/32). Every inspection stores the
+version that classified it. Absolute input sanity limits (`INPUT_LIMITS`) are separate
+from thresholds; readings above a tire's known original tread or max cold PSI ask the
+driver to confirm.
+
+**Photo enforcement.** The phone names every missing input on Save and keeps the tire a
+draft; the server re-evaluates with the tenant's active rules and rejects a submission
+that lacks a required photo. A submission that claims a photo id is stored as
+`pending_photos` until the upload arrives, then becomes `submitted`.
+
 ## Deploying (Vercel + Supabase)
 
 1. Create a Supabase project. Run migrations with either

@@ -1,10 +1,11 @@
 import "server-only";
 import { withScope, type Scope } from "@/lib/db/client";
 import { audit, diffObjects } from "@/lib/audit";
+import type { ComponentKind } from "@/lib/equipment/types";
 
 export interface AssetListRow {
   id: string;
-  type: "truck" | "trailer";
+  type: ComponentKind;
   unit_number: string;
   vin: string | null;
   make: string | null;
@@ -30,19 +31,20 @@ export interface AssetInput {
   status: "active" | "inactive";
 }
 
-export async function listAssets(scope: Scope & { tenantId: string }, type: "truck" | "trailer", opts: { q?: string; status?: "active" | "inactive" | "all"; due?: boolean; dueDays?: number } = {}): Promise<AssetListRow[]> {
+export async function listAssets(scope: Scope & { tenantId: string }, type: ComponentKind, opts: { q?: string; status?: "active" | "inactive" | "all"; due?: boolean; dueDays?: number } = {}): Promise<AssetListRow[]> {
   const q = (opts.q ?? "").trim();
   const status = opts.status ?? "all";
   const dueDays = opts.dueDays ?? 7;
-  const col = type === "truck" ? "truck_asset_id" : "trailer_asset_id";
   return withScope(scope, async (tx) =>
     tx<AssetListRow[]>`
       with last as (
-        select distinct on (i.${tx(col)}) i.${tx(col)} as asset_id, i.submitted_at, (i.summary->>'red')::int as red, (i.summary->>'yellow')::int as yellow
-        from inspections i where i.tenant_id = ${scope.tenantId} and i.status = 'submitted' and i.${tx(col)} is not null
-        order by i.${tx(col)}, i.submitted_at desc
+        select distinct on (ic.asset_id) ic.asset_id, i.submitted_at, (i.summary->>'red')::int as red, (i.summary->>'yellow')::int as yellow
+        from inspection_components ic join inspections i on i.id = ic.inspection_id
+        where i.tenant_id = ${scope.tenantId} and i.status in ('submitted', 'pending_photos') and ic.asset_id is not null
+        order by ic.asset_id, i.submitted_at desc
       ), cnt as (
-        select i.${tx(col)} as asset_id, count(*)::int as n from inspections i where i.tenant_id = ${scope.tenantId} and i.status = 'submitted' group by 1
+        select ic.asset_id, count(*)::int as n from inspection_components ic join inspections i on i.id = ic.inspection_id
+        where i.tenant_id = ${scope.tenantId} and i.status in ('submitted', 'pending_photos') group by 1
       )
       select a.id, a.type, a.unit_number, a.vin, a.make, a.model, a.year, a.license_plate, a.status, a.source, a.last_odometer::float8 as last_odometer,
              l.submitted_at as last_inspection_at, l.red as last_red, l.yellow as last_yellow, coalesce(c.n, 0) as inspections_count
@@ -63,7 +65,7 @@ export async function getAsset(scope: Scope & { tenantId: string }, id: string) 
   });
 }
 
-export async function createAsset(scope: Scope & { tenantId: string; userId: string }, type: "truck" | "trailer", input: AssetInput, actorLabel: string) {
+export async function createAsset(scope: Scope & { tenantId: string; userId: string }, type: ComponentKind, input: AssetInput, actorLabel: string) {
   return withScope(scope, async (tx) => {
     const [row] = await tx<{ id: string }[]>`insert into assets (tenant_id, type, unit_number, vin, make, model, year, license_plate, status, source)
       values (${scope.tenantId}, ${type}, ${input.unit_number.trim()}, ${input.vin || null}, ${input.make || null}, ${input.model || null}, ${input.year ?? null}, ${input.license_plate || null}, ${input.status}, 'manual') returning id`;
@@ -118,31 +120,33 @@ export async function assetInspections(scope: Scope & { tenantId: string }, asse
              case when i.truck_asset_id = ${assetId} then tl.unit_number else tr.unit_number end as other_unit
       from inspections i left join drivers d on d.id = i.driver_id
       left join assets tr on tr.id = i.truck_asset_id left join assets tl on tl.id = i.trailer_asset_id
-      where i.tenant_id = ${scope.tenantId} and i.status = 'submitted' and (i.truck_asset_id = ${assetId} or i.trailer_asset_id = ${assetId})
+      where i.tenant_id = ${scope.tenantId} and i.status in ('submitted', 'pending_photos') and exists (select 1 from inspection_components ic where ic.inspection_id = i.id and ic.asset_id = ${assetId})
       order by i.submitted_at desc limit ${limit}`,
   );
 }
 
 export interface PositionSeries {
   tire_number: number;
+  position_key: string | null;
   points: { submitted_at: string; tread_32nds: number | null; psi: number | null; overall_status: string }[];
 }
 
 /** Per-position tread/PSI over time for an asset (newest last). */
 export async function assetPositionSeries(scope: Scope & { tenantId: string }, assetId: string, limit = 12): Promise<PositionSeries[]> {
   return withScope(scope, async (tx) => {
-    const rows = await tx<{ tire_number: number; submitted_at: string; tread_32nds: number | null; psi: number | null; overall_status: string }[]>`
+    const rows = await tx<{ tire_number: number; position_key: string | null; submitted_at: string; tread_32nds: number | null; psi: number | null; overall_status: string }[]>`
       select * from (
-        select te.tire_number, i.submitted_at, te.tread_32nds, te.psi::float8 as psi, te.overall_status,
-               row_number() over (partition by te.tire_number order by i.submitted_at desc) as rn
+        select te.tire_number, split_part(te.position_key, '/', 2) as position_key, i.submitted_at, te.tread_32nds, te.psi::float8 as psi, te.overall_status,
+               row_number() over (partition by split_part(te.position_key, '/', 2) order by i.submitted_at desc) as rn
         from tire_entries te join inspections i on i.id = te.inspection_id
-        where te.asset_id = ${assetId} and i.status = 'submitted'
+        where te.asset_id = ${assetId} and i.status in ('submitted', 'pending_photos')
       ) x where rn <= ${limit} order by tire_number, submitted_at`;
-    const map = new Map<number, PositionSeries>();
+    const map = new Map<string, PositionSeries>();
     for (const r of rows) {
-      const s = map.get(r.tire_number) ?? { tire_number: r.tire_number, points: [] };
+      const k = r.position_key ?? String(r.tire_number);
+      const s = map.get(k) ?? { tire_number: r.tire_number, position_key: r.position_key, points: [] };
       s.points.push({ submitted_at: r.submitted_at, tread_32nds: r.tread_32nds, psi: r.psi, overall_status: r.overall_status });
-      map.set(r.tire_number, s);
+      map.set(k, s);
     }
     return [...map.values()];
   });

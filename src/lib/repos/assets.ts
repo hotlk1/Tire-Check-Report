@@ -3,7 +3,7 @@ import { withScope, type Scope } from "@/lib/db/client";
 
 export interface AssetSummary {
   id: string;
-  type: "truck" | "trailer";
+  type: "truck" | "trailer" | "jeep" | "dolly" | "booster";
   unit_number: string;
   make: string | null;
   model: string | null;
@@ -12,7 +12,7 @@ export interface AssetSummary {
   last_odometer: number | null;
 }
 
-export async function searchAssets(scope: Scope, type: "truck" | "trailer", query: string, limit = 20): Promise<AssetSummary[]> {
+export async function searchAssets(scope: Scope, type: "truck" | "trailer" | "jeep" | "dolly" | "booster", query: string, limit = 20): Promise<AssetSummary[]> {
   const q = query.trim();
   return withScope(scope, async (tx) => {
     const rows = await tx<AssetSummary[]>`

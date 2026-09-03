@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { withScope } from "@/lib/db/client";
 import { inspectionAudit } from "@/lib/repos/admin/reports";
 import { loadReport, reportHistory } from "@/lib/repos/inspections";
-import { getPosition, tiresForMode } from "@/lib/tires";
+import { positionLabel } from "@/lib/equipment/labels";
 import { deleteReportAction, updateMetaAction, updateTireAction } from "../actions";
 
 export default async function AdminReportPage({ params, searchParams }: PageProps<"/admin/reports/[id]">) {
@@ -23,7 +23,7 @@ export default async function AdminReportPage({ params, searchParams }: PageProp
   if (!statusRow) notFound();
   const deleted = statusRow.status === "deleted";
   const report = deleted ? null : await loadReport(session.scope, id);
-  const history = report ? await reportHistory(session.scope, [report.truck?.id, report.trailer?.id].filter((x): x is string => !!x), report.id) : [];
+  const history = report ? await reportHistory(session.scope, report.layout.components.map((c) => c.assetId).filter((x): x is string => !!x), report.id) : [];
   const auditRows = await inspectionAudit(session.scope, id);
 
   return (
@@ -51,6 +51,7 @@ export default async function AdminReportPage({ params, searchParams }: PageProp
         }
       />
       {sp.saved ? <div className="mb-3 rounded-[var(--radius)] bg-status-green-soft px-3 py-2 text-[13px] text-status-green">{t("admin.common.saved")}</div> : null}
+      {report?.status === "pending_photos" ? <div className="mb-3 rounded-[var(--radius)] bg-status-red-soft px-3 py-2 text-[13px] text-status-red" data-testid="admin-pending-photos">{t("admin.reports.pendingPhotos")} · {t("report.pendingRequiredPhotos", { count: report.required_photos_missing })}</div> : null}
 
       {report ? (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -83,22 +84,16 @@ export default async function AdminReportPage({ params, searchParams }: PageProp
             <Panel title={t("admin.reports.editTire", { number: "" }).replace(/\s+$/, "")}>
               <p className="mb-2 text-[12px] text-text-3">{t("admin.reports.reevaluated", { version: report.threshold.version })}</p>
               <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1">
-                {tiresForMode(report.mode).map((n) => {
+                {report.layout.positions.map((pos) => {
+                  const n = pos.number;
                   const e = report.tires.find((x) => x.tire_number === n);
-                  const pos = getPosition(n);
-                  const spare = pos.positionClass === "spare";
+                  const spare = pos.isSpare;
                   return (
                     <form key={n} id={`tire-${n}`} action={updateTireAction.bind(null, id, n)} className="grid grid-cols-[36px_1fr_1fr_1fr_auto] items-end gap-1.5 rounded-[var(--radius)] border border-border px-2 py-1.5" data-status={e?.overall_status ?? "none"}>
                       <div className="flex h-9 items-center justify-center rounded-md bg-surface-3 text-[13px] font-bold" style={{ boxShadow: "inset 0 0 0 2px var(--s)" }}>
                         {n}
                       </div>
-                      {spare ? (
-                        <label className="flex h-9 items-center gap-1 text-[12px] text-text-2">
-                          <input type="checkbox" name="absent" defaultChecked={!!e?.absent} /> {t("tire.noSpare")}
-                        </label>
-                      ) : (
-                        <input name="psi" type="number" step="0.5" placeholder={t("admin.reports.psi")} defaultValue={e?.psi ?? ""} className={inputCls + " h-9"} />
-                      )}
+                      <input name="psi" type="number" step="0.5" placeholder={t("admin.reports.psi")} defaultValue={e?.psi ?? ""} className={inputCls + " h-9"} />
                       <input name="tread32" type="number" step="1" min="0" max="40" placeholder={t("admin.reports.tread")} defaultValue={e?.tread_32nds ?? ""} className={inputCls + " h-9"} />
                       <select name="damage" defaultValue={e?.damage ?? "none"} className={selectCls + " h-9"}>
                         <option value="none">{t("damage.none")}</option>
@@ -110,8 +105,9 @@ export default async function AdminReportPage({ params, searchParams }: PageProp
                         ✓
                       </button>
                       <div className="col-span-5 text-[11px] text-text-3">
-                        {pos.abbreviation} · {e?.absent ? t("tire.noSpare") : e ? t(`tire.status.${e.overall_status}`) : t("tire.status.none")}
-                        {e?.photos.length ? ` · 📷 ${e.photos.length}` : ""}
+                        {positionLabel(t, report.layout, n)} {spare ? "" : pos.abbreviation} · {e?.absent ? t("tire.noSpare") : e ? t(`tire.status.${e.overall_status}`) : spare ? t("tire.spareOptional") : t("tire.status.none")}
+                        {e?.photos.length ? ` · 📷 ${e.photos.length}` : e?.photo_required ? ` · ${t("report.photoMissing")}` : ""}
+                        {e?.tire_code ? ` · ${e.tire_code}` : ""}
                       </div>
                     </form>
                   );

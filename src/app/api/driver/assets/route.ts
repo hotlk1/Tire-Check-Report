@@ -8,8 +8,8 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const session = await driverSessionFromRequest(req);
   if (!session) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  const type = req.nextUrl.searchParams.get("type");
-  if (type !== "truck" && type !== "trailer") return NextResponse.json({ ok: false, error: "bad_type" }, { status: 400 });
+  const type = req.nextUrl.searchParams.get("type") as "truck" | "trailer" | "jeep" | "dolly" | "booster" | null;
+  if (!type || !["truck", "trailer", "jeep", "dolly", "booster"].includes(type)) return NextResponse.json({ ok: false, error: "bad_type" }, { status: 400 });
   const q = (req.nextUrl.searchParams.get("q") ?? "").slice(0, 40);
   const assets = await searchAssets({ actor: "driver", tenantId: session.tenantId, driverId: session.driverId }, type, q, 25);
   return NextResponse.json({ ok: true, assets });
